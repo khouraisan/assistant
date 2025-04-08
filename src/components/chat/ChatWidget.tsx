@@ -174,7 +174,13 @@ export default function ChatWidget() {
 						onRegenerate={onRegenerateMessage}
 						onLastMessageChange={() => {}}
 					/>
-					<Input value={input()} setValue={setInput} onSend={onSendClick} isGenerating={isGenerating()} disabled={!isConnected()} />
+					<Input
+						value={input()}
+						setValue={setInput}
+						onSend={onSendClick}
+						isGenerating={isGenerating()}
+						disabled={!isConnected()}
+					/>
 				</Show>
 			</div>
 			<Portal mount={widgetCtx.drawer()}>
@@ -200,7 +206,9 @@ export default function ChatWidget() {
 					isMessagesOverlow={isMessageOverflow()}
 					maximized={widgetCtx.maximized()}
 					onTop={(fast) => messagesRef!.scrollTo({top: 0, behavior: fast ? undefined : "smooth"})}
-					onBottom={(fast) => messagesRef!.scrollTo({top: messagesRef!.scrollHeight, behavior: fast ? undefined : "smooth"})}
+					onBottom={(fast) =>
+						messagesRef!.scrollTo({top: messagesRef!.scrollHeight, behavior: fast ? undefined : "smooth"})
+					}
 					onInsertAssistantMessage={handleInsertAssistantMessage}
 				/>
 			</Portal>
@@ -218,11 +226,19 @@ function ChatQuickActions(props: {
 }) {
 	return (
 		<>
-			<button title="Add assistant message" onclick={() => props.onInsertAssistantMessage()} disabled={props.chatId === null}>
+			<button
+				title="Add assistant message"
+				onclick={() => props.onInsertAssistantMessage()}
+				disabled={props.chatId === null}
+			>
 				<AiOutlineRobot />
 			</button>
 			<div title="Scroll to top (double click to scroll instantly)" class="quick-action-scroll">
-				<button onDblClick={() => props.onTop(true)} onClick={() => props.onTop(false)} disabled={props.chatId === null || !props.isMessagesOverlow}>
+				<button
+					onDblClick={() => props.onTop(true)}
+					onClick={() => props.onTop(false)}
+					disabled={props.chatId === null || !props.isMessagesOverlow}
+				>
 					<FaSolidAngleUp size={"1rem"} />
 				</button>
 				<button
@@ -308,20 +324,44 @@ function ChatDrawer(props: {
 	);
 }
 
-function ChatDrawerOptions(props: {currentChatId: server.ChatId | null; setState: (value: ChatDrawerTab) => void; state: ChatDrawerTab}) {
+function ChatDrawerOptions(props: {
+	currentChatId: server.ChatId | null;
+	setState: (value: ChatDrawerTab) => void;
+	state: ChatDrawerTab;
+}) {
 	return (
 		<div class="chat-drawer-options">
-			<Button class="chat-list-option" color="secondary" onClick={() => props.setState("list")} disabled={props.currentChatId === null || props.state === "list"}>
+			<Button
+				class="chat-list-option"
+				color="secondary"
+				onClick={() => props.setState("list")}
+				disabled={props.currentChatId === null || props.state === "list"}
+			>
 				<FaSolidListUl size={"1.125em"} />
 			</Button>
-			<Button class="chat-settings-option" color="secondary" onClick={() => props.setState("settings")} disabled={props.currentChatId === null || props.state === "settings"}>
+			<Button
+				class="chat-settings-option"
+				color="secondary"
+				onClick={() => props.setState("settings")}
+				disabled={props.currentChatId === null || props.state === "settings"}
+			>
 				{/* <FaSolidGear size={"1.125em"} /> */}
 				<IoOptions size={"1.33em"} />
 			</Button>
-			<Button class="chat-prompt-option" color="secondary" onClick={() => props.setState("prompt")} disabled={props.currentChatId === null || props.state === "prompt"}>
+			<Button
+				class="chat-prompt-option"
+				color="secondary"
+				onClick={() => props.setState("prompt")}
+				disabled={props.currentChatId === null || props.state === "prompt"}
+			>
 				<FaSolidPassport size={"1.125em"} />
 			</Button>
-			<Button class="chat-info-option" color="secondary" onClick={() => props.setState("info")} disabled={props.currentChatId === null || props.state === "info"}>
+			<Button
+				class="chat-info-option"
+				color="secondary"
+				onClick={() => props.setState("info")}
+				disabled={props.currentChatId === null || props.state === "info"}
+			>
 				<FaSolidCircleInfo size={"1.125em"} />
 			</Button>
 		</div>
@@ -415,7 +455,13 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 			</section>
 			<section>
 				<h1>System prompt</h1>
-				<textarea class="system-prompt" value={settings.systemPrompt} onInput={(ev) => setSettings("systemPrompt", (ev.currentTarget as HTMLTextAreaElement).value)} />
+				<textarea
+					class="system-prompt"
+					disabled={!settingsLoaded()}
+					placeholder={settingsLoaded() ? "System prompt" : "Loading..."}
+					value={settings.systemPrompt}
+					onInput={(ev) => setSettings("systemPrompt", (ev.currentTarget as HTMLTextAreaElement).value)}
+				/>
 			</section>
 			<section>
 				<h1>Extra</h1>
@@ -425,7 +471,10 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 	);
 }
 
-function ColorSelect(props: {value: server.ChatSettings["color"]; onSelect: (value: server.ChatSettings["color"]) => void}) {
+function ColorSelect(props: {
+	value: server.ChatSettings["color"];
+	onSelect: (value: server.ChatSettings["color"]) => void;
+}) {
 	const opts = createOptions(["none", "red", "green", "yellow", "blue", "orange", "purple"]);
 
 	return (
@@ -438,10 +487,16 @@ function ColorSelect(props: {value: server.ChatSettings["color"]; onSelect: (val
 	);
 }
 
-function OpenRouterModelSelect(props: {value: server.OpenRouterModelId; onSelect: (model: server.OpenRouterModel) => void}) {
-	const [models] = createResource<server.OpenRouterModel[]>(async () => (await server.getOpenRouterModels()).toSorted((a, b) => a.name.localeCompare(b.name)), {
-		initialValue: [],
-	});
+function OpenRouterModelSelect(props: {
+	value: server.OpenRouterModelId;
+	onSelect: (model: server.OpenRouterModel) => void;
+}) {
+	const [models] = createResource<server.OpenRouterModel[]>(
+		async () => (await server.getOpenRouterModels()).toSorted((a, b) => a.name.localeCompare(b.name)),
+		{
+			initialValue: [],
+		}
+	);
 
 	const [initialValue, setInitialValue] = createSignal<server.OpenRouterModel | null>(null);
 
