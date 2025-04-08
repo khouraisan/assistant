@@ -1,0 +1,99 @@
+.character-chat-settings {
+	display: flex;
+	flex-direction: column;
+	gap: calc(var(--large-gap) * 2);
+}
+
+.character-chat-settings ul {
+	list-style: none;
+}
+
+.character-picker {
+	flex-grow: 1;
+}
+
+.character-picker-list {
+	/* fill the rest of the sidebar and don't grow for children */
+	contain: strict;
+	flex-grow: 1;
+}
+
+.character-picker-list ul {
+	overflow-y: auto;
+	height: 100%;
+}
+
+.picked-characters ul,
+.character-picker-list ul {
+	background-color: var(--bg-primary-light);
+	padding: 1rem;
+	border-radius: var(--border-radius);
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+}
+
+.picked-characters > ul:empty::before,
+.character-picker-list > ul:empty::before {
+	display: block;
+	width: 100%;
+	text-align: center;
+	opacity: 0.5;
+}
+
+.picked-characters > ul:empty::before {
+	content: "Empty";
+}
+
+.character-picker-list > ul:empty::before {
+	content: "You have no characters";
+}
+
+.character-li {
+	background-color: var(--bg-primary-lighter);
+	padding: 0;
+	border-radius: var(--border-radius);
+}
+.character-li:hover {
+	background-color: var(--bg-secondary-light);
+	cursor: pointer;
+}
+
+.character-li.picked {
+	background-color: var(--bg-primary);
+	color: rgba(from currentColor r g b / 0.5);
+
+	&:hover {
+		background-color: var(--bg-primary-dark);
+		color: rgba(from currentColor r g b / 0.33);
+	}
+
+	& img {
+		mix-blend-mode: multiply;
+		filter: sepia();
+	}
+
+	& button {
+		color: inherit;
+	}
+
+	& button.timed.active {
+		--gradient-color: var(--bg-primary-dark);
+	}
+}
+
+.character-li button {
+	display: flex;
+	width: 100%;
+	height: 100%;
+	background-color: transparent;
+	padding: 1rem;
+	border-radius: inherit;
+}
+
+.character-li img {
+	width: 4rem;
+	aspect-ratio: 2 / 3;
+	border-radius: var(--border-radius);
+	margin-right: 1rem;
+}

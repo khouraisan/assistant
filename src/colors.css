@@ -1,0 +1,62 @@
+:root {
+	--licorice: #2d1d1d;
+	--rose-ebony: #543a39;
+	--auburn: #ad413b;
+	--van-dyke: #493231;
+	--night: #0f0f0f;
+
+	--border-radius: 4px;
+	--large-gap: 1rem;
+	--gap: 0.5rem;
+}
+
+@media (width < 480px) {
+	:root {
+		--large-gap: 0.8rem;
+		--gap: 0.4rem;
+	}
+}
+
+body.dark {
+	--bg-page: var(--night);
+	--bg-page-light: hsl(from var(--night) h s calc(l * 1.5));
+	--bg-page-lighter: hsl(from var(--night) h s calc(l * 2));
+	--bg-page-dark: hsl(from var(--night) h s calc(l * 0.8));
+
+	--bg-primary: var(--licorice);
+	--bg-primary-light: hsl(from var(--licorice) h s calc(l * 1.3));
+	--bg-primary-lighter: hsl(from var(--licorice) h s calc(l * 1.6));
+	--bg-primary-dark: hsl(from var(--licorice) h s calc(l * 0.8));
+
+	--bg-secondary: var(--van-dyke);
+	--bg-secondary-light: hsl(from var(--van-dyke) h s calc(l * 1.2));
+	--bg-secondary-lighter: hsl(from var(--van-dyke) h s calc(l * 1.4));
+	--bg-secondary-dark: hsl(from var(--van-dyke) h s calc(l * 0.85));
+
+	--accent: var(--auburn);
+	--accent-light: hsl(from var(--auburn) h s calc(l * 1.15));
+	--accent-lighter: hsl(from var(--auburn) h s calc(l * 1.33));
+	--accent-dark: hsl(from var(--auburn) h s calc(l * 0.85));
+	--accent-darker: hsl(from var(--auburn) h s calc(l * 0.7));
+
+	/* --text-primary: #fff; */
+	--text-primary: hsl(213, 27%, 98%);
+	--text-inverse: var(--night);
+}
+
+body.dark a {
+	color: #43bef4;
+}
+
+body.dark a:visited {
+	color: #b42ddd;
+}
+
+body.dark a:hover {
+	filter: brightness(1.15);
+}
+
+body.dark .sn-toast {
+	--sn-toast-bg-color: var(--bg-page-lighter);
+	--sn-toast-text-color: var(--text-primary);
+}

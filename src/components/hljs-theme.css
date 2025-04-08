@@ -1,0 +1,92 @@
+pre > code.hljs {
+	display: block;
+	overflow-x: auto;
+}
+
+code.hljs * {
+	line-height: 1.1;
+}
+
+.hljs {
+	background: transparent;
+	color: var(--text-primary);
+}
+.language-xml .hljs-meta,
+.language-xml .hljs-meta-string {
+	font-weight: bold;
+	font-style: italic;
+	color: var(--accent-light);
+}
+.hljs-comment,
+.hljs-quote {
+	font-style: italic;
+	color: var(--bg-secondary-lighter);
+}
+.hljs-name,
+.hljs-keyword,
+.hljs-built_in {
+	color: var(--accent-lighter);
+}
+
+.hljs-string {
+	font-weight: normal;
+}
+.hljs-code,
+.hljs-string,
+.hljs-meta .hljs-string,
+.hljs-number,
+.hljs-regexp,
+.hljs-link {
+	color: var(--accent-light);
+}
+.hljs-title,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable,
+.hljs-template-variable {
+	color: var(--accent);
+}
+.hljs-title.class_,
+.hljs-class .hljs-title,
+.hljs-type {
+	font-weight: bold;
+	color: var(--accent-light);
+}
+.hljs-title.function_,
+.hljs-function .hljs-title,
+.hljs-attr,
+.hljs-subst,
+.hljs-tag {
+	color: var(--text-primary);
+}
+.hljs-formula {
+	background-color: var(--bg-primary-light);
+	font-style: italic;
+}
+.hljs-addition {
+	background-color: var(--bg-secondary-light);
+}
+.hljs-deletion {
+	background-color: var(--accent-dark);
+}
+.hljs-meta {
+	color: var(--accent-light);
+}
+.hljs-section,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-selector-pseudo,
+.hljs-selector-tag {
+	font-weight: bold;
+	color: var(--accent-light);
+}
+.hljs-selector-pseudo {
+	font-style: italic;
+}
+.hljs-doctag,
+.hljs-strong {
+	font-weight: bold;
+}
+.hljs-emphasis {
+	font-style: italic;
+}

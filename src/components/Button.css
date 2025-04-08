@@ -1,0 +1,88 @@
+button.primary.timed,
+button.timed {
+	--gradient-color: var(--bg-primary-light);
+	transition: none;
+}
+
+button.secondary.timed {
+	--gradient-color: var(--bg-secondary-light);
+	transition: none;
+}
+
+@property --timed-fill {
+	syntax: "<percentage>";
+	inherits: false;
+	initial-value: 0%;
+}
+@property --timed-fill-2 {
+	syntax: "<percentage>";
+	inherits: false;
+	initial-value: 0%;
+}
+
+button.timed.active {
+	background-image: linear-gradient(
+		90deg,
+		var(--gradient-color) 0%,
+		var(--gradient-color) 50%,
+		var(--accent) 51%,
+		var(--accent) 100%
+	);
+	--timed-fill: 100%;
+	transition: --timed-fill linear;
+	/* transition-duration: 1000ms; -- set in js */
+
+	color: rgba(from currentColor r g b / 0.5);
+
+	background-position: var(--timed-fill) 0;
+	background-size: 200%;
+}
+
+#button-progress-slot .progress-popper {
+	position: absolute;
+	height: 1.5lh;
+	width: 9rem;
+	border-radius: var(--border-radius);
+	z-index: 2;
+	box-shadow: 0 0px 6px 1px var(--bg-page-light);
+
+	/* --- */
+
+	--gradient-color: var(--bg-secondary-light);
+	background-image: linear-gradient(
+		90deg,
+		var(--gradient-color) 0%,
+		var(--gradient-color) 50%,
+		var(--accent) 51%,
+		var(--accent) 100%
+	);
+	transition: --timed-fill-2 linear;
+	/* transition-duration: 1000ms; -- set in js */
+
+	--timed-fill-2: 0%;
+
+	background-position: var(--timed-fill-2) 0;
+	background-size: 200%;
+}
+
+#button-progress-slot .progress-popper.active {
+	--timed-fill-2: 100%;
+}
+
+#button-progress-slot .progress-popper {
+	transform: translate(0, calc(-100% - 2lh));
+	translate: -50% 0;
+}
+
+#button-progress-slot.top .progress-popper {
+	transform: translate(0, calc(-100% - 2lh));
+}
+#button-progress-slot.bottom .progress-popper {
+	transform: translate(0, calc(100% + 2lh));
+}
+#button-progress-slot.left .progress-popper {
+	translate: calc(-100% - 1lh) 0;
+}
+#button-progress-slot.right .progress-popper {
+	translate: 1lh 0;
+}

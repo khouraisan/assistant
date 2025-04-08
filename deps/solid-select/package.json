@@ -1,0 +1,85 @@
+{
+  "name": "@thisbeyond/solid-select",
+  "version": "0.15.0",
+  "description": "The Select component for Solid.",
+  "info": "A flexible, reactive Select component and core built for use with SolidJS. Supports single or multiple values; static, reactive or dynamic options (including via async fetch); builtin filtering; custom styling and more!",
+  "homepage": "https://solid-select.com",
+  "license": "MIT",
+  "author": "Martin Pengelly-Phillips",
+  "contributors": [
+    {
+      "name": "Martin Pengelly-Phillips",
+      "email": "dev@thisbeyond.com"
+    }
+  ],
+  "keywords": [
+    "select",
+    "combobox",
+    "autocomplete",
+    "solid",
+    "solidjs",
+    "solidhack",
+    "best_ecosystem"
+  ],
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "browser": {},
+  "exports": {
+    ".": {
+      "solid": {
+        "development": "./dist/dev.jsx",
+        "import": "./dist/index.jsx"
+      },
+      "development": {
+        "import": {
+          "types": "./dist/index.d.ts",
+          "default": "./dist/dev.js"
+        }
+      },
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "./style.css": {
+      "import": "./dist/style.css"
+    }
+  },
+  "typesVersions": {},
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "prepublishOnly": "pnpm run build",
+    "release": "release-it"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thisbeyond/solid-select.git"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9"
+  },
+  "devDependencies": {
+    "@release-it/keep-a-changelog": "^5.0.0",
+    "prettier": "^3.3.2",
+    "release-it": "^17.4.0",
+    "solid-js": "^1.8",
+    "tsup": "^8.1.0",
+    "tsup-preset-solid": "^2.2.0",
+    "typescript": "^5.5.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

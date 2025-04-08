@@ -1,0 +1,89 @@
+.chat-prompt-settings ol {
+	list-style: none;
+}
+
+.chat-prompt-settings {
+	display: flex;
+	flex-direction: column;
+	gap: var(--large-gap);
+}
+
+.chat-prompt-settings textarea {
+	height: 4lh;
+}
+
+.snippet-editor-buttons {
+	display: flex;
+	gap: var(--gap);
+}
+
+.snippet-editor.unsaved .save-snippet {
+	background-color: var(--bg-secondary-light);
+}
+
+.snippet-editor .add-snippet {
+	margin-left: auto;
+}
+
+.prompt-structure ol {
+	background-color: var(--bg-primary-light);
+	padding: 1rem;
+	border-radius: var(--border-radius);
+	display: flex;
+	flex-direction: column;
+	gap: var(--large-gap);
+}
+
+.prompt-structure > ol:empty::before {
+	content: "Blank";
+	display: block;
+	width: 100%;
+	text-align: center;
+	opacity: 0.5;
+}
+
+.prompt-structure > ol ol {
+	margin-top: 0.5rem;
+	background-color: var(--bg-primary-light);
+}
+
+/* empty slots in nested prompts */
+.prompt-structure > ol ol:empty {
+	padding: 0.5rem;
+
+	&::before {
+		content: "Empty";
+		display: block;
+		width: 100%;
+		text-align: center;
+		opacity: 0.5;
+	}
+}
+
+.prompt-structure li {
+	background-color: var(--bg-primary-lighter);
+	padding: 0.5rem 1rem;
+	border-radius: var(--border-radius);
+
+	cursor: grab;
+}
+
+:not(.pretty) .prompt-structure li {
+	transition: none !important;
+}
+.pretty .prompt-structure li.sortable-ghost {
+	animation: a 200ms ease-in-out infinite alternate;
+}
+
+.prompt-structure li.sortable-ghost {
+	filter: brightness(1.2)
+}
+
+@keyframes a {
+	from {
+		rotate: -0.2deg;
+	}
+	to {
+		rotate: 0.2deg;
+	}
+}

@@ -1,0 +1,31 @@
+{
+	"name": "assistant",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"start": "bun vite",
+		"build": "tsc -b && vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@solid-primitives/deep": "^0.3.0",
+		"@solid-primitives/scheduled": "^1.5.0",
+		"@thisbeyond/solid-select": "./deps/solid-select",
+		"highlight.js": "^11.11.1",
+		"marked": "^15.0.7",
+		"rehype-raw": "^7.0.0",
+		"solid-icons": "^1.1.0",
+		"solid-js": "^1.9.4",
+		"solid-markdown": "^2.0.14",
+		"solid-notifications": "^1.1.2",
+		"unist-util-visit": "^5.0.0",
+		"sortablejs": "^1.15.6"
+	},
+	"devDependencies": {
+		"@types/sortablejs": "^1.15.8",
+		"typescript": "~5.7.2",
+		"vite": "^6.1.0",
+		"vite-plugin-solid": "^2.11.0"
+	}
+}

@@ -1,0 +1,149 @@
+.neat-input-area {
+	overflow: hidden;
+	flex-grow: 1;
+	border-radius: var(--border-radius);
+
+	/* fill entire cell */
+	height: 100%;
+	width: 100%;
+
+	contain: strict;
+}
+
+.neat-input-area:focus-within {
+	outline: 1px solid var(--accent);
+}
+
+.neat-input {
+	resize: vertical;
+
+	height: 100%;
+	width: 100%;
+
+	overflow-y: auto;
+	overflow-x: hidden;
+
+	scrollbar-gutter: stable;
+	scrollbar-width: thin;
+
+	background-color: var(--bg-primary);
+	border: none;
+
+	caret-color: var(--text-primary);
+
+	margin: 0;
+	padding: var(--textarea-padding);
+
+	display: grid;
+	grid-template-rows: 1fr;
+	grid-template-columns: 1fr;
+
+	font-size: 1.6rem;
+
+	border-radius: inherit;
+}
+
+.neat-input textarea {
+	appearance: none;
+	margin: 0;
+	padding: 0;
+
+	color: transparent;
+
+	resize: none;
+	overflow: hidden;
+
+	background-color: var(--bg-primary);
+	border: none;
+
+	border-radius: inherit;
+
+	caret-color: var(--text-primary);
+
+	outline: none;
+
+	/* display cursor over mask */
+	z-index: 1;
+}
+
+.neat-input textarea,
+.neat-input-mask {
+	grid-row: 1;
+	grid-column: 1;
+
+	/* this worked in cwk but not here */
+	/* line-height: normal; */
+	background-color: transparent;
+
+	font-size: inherit;
+}
+
+.neat-input-mask {
+	pointer-events: none;
+	white-space: pre-line;
+	word-wrap: anywhere;
+}
+
+.neat-input-mask > span {
+	white-space: pre-wrap;
+}
+
+.neat-macro {
+	color: var(--accent-light);
+
+	border-radius: var(--border-radius);
+
+	display: inline-block;
+	vertical-align: baseline;
+
+	text-align: center;
+
+	height: 1rem;
+
+	display: inline;
+
+	/* set with javascript */
+	/* --content: <the text of macro> */
+}
+
+.neat-macro > span.macro-value::before {
+	content: var(--macro);
+}
+
+/** Dont really want to support dynamic macro values in this project */
+
+/* .neat-macro[data-macro="{{char}}"] > span.macro-value::before {
+	--macro: var(--char-name);
+	color: var(--text-primary);
+}
+
+.neat-macro[data-macro="{{user}}"] > span.macro-value::before {
+	--macro: var(--user-name);
+	color: var(--text-primary);
+} */
+
+.neat-macro > span.macro-value {
+	text-overflow: clip;
+	overflow-x: hidden;
+}
+
+.neat-quote {
+	color: var(--quote-user);
+}
+
+.neat-italic {
+	filter: brightness(0.8);
+	font-style: italic;
+}
+
+.neat-bold {
+	filter: brightness(0.8);
+	/* similar to bold but preserves width */
+	text-shadow: 0 0 1px currentColor;
+}
+
+.neat-input-mask[data-placeholder]:empty::before {
+	content: attr(data-placeholder);
+	color: inherit;
+	opacity: 0.5;
+}

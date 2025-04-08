@@ -1,0 +1,22 @@
+.sort-widget {
+	flex-grow: 1;
+	overflow-x: hidden;
+	overflow-y: auto;
+	padding-bottom: 2rem;
+
+	scrollbar-gutter: stable;
+
+	padding: 1rem;
+}
+
+.sort-widget-list {
+	list-style: none;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.sort-widget-list > li {
+	padding: 1rem 2rem;
+	background-color: rgb(from var(--bg-secondary-dark) r g b / 0.166);
+}

@@ -1,0 +1,304 @@
+.widget {
+	min-width: max(18vw, 250px);
+	height: 100%;
+
+	border: 2px solid;
+	border-color: var(--bg-primary);
+
+	display: flex;
+	flex-direction: column;
+
+	position: relative;
+}
+
+.widget.resizing {
+	border-right-color: var(--accent);
+	will-change: width;
+}
+
+.widget > header {
+	padding: 1px;
+	height: 3rem;
+	background-color: var(--bg-primary);
+	border-bottom: inherit;
+
+	flex-shrink: 0;
+
+	/* For backdrop-filter */
+	z-index: 1;
+
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 2px;
+
+	box-sizing: content-box;
+
+	font-size: 1.6rem;
+}
+
+.widget > header > * {
+	flex-shrink: 0;
+}
+
+.widget > header button,
+.widget-drawer-wrapper button.drawer-close-button {
+	background-color: var(--bg-secondary);
+	padding: 0;
+	height: 100%;
+	aspect-ratio: 1;
+	font-size: inherit;
+
+	display: flex;
+	justify-content: center;
+	align-items: center;
+
+	border-radius: 0;
+
+	&:hover {
+		background-color: var(--bg-secondary-light);
+	}
+
+	&:disabled {
+		background-color: var(--bg-primary-dark);
+		cursor: not-allowed;
+	}
+}
+
+.widget button.drawer-open-button:hover {
+	background-color: var(--bg-secondary);
+}
+
+.widget-title {
+	flex-basis: 0;
+	flex-grow: 1;
+	font-weight: bold;
+	padding-left: 4px;
+	padding-right: 4px;
+}
+
+.widget-title h2 {
+	cursor: pointer;
+}
+
+.widget-title h2 span {
+	cursor: text;
+}
+
+/* Either h2 or input */
+.widget-title > * {
+	font-size: inherit;
+	font-family: inherit;
+	font-weight: inherit;
+	padding: 0;
+	padding-left: 4px;
+	border: 0;
+	background-color: transparent;
+	border-radius: 0;
+
+	max-width: 40rem;
+	/* explicit height in case h2 ever becomes empty */
+	height: 1lh;
+
+	white-space: pre;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.widget-title > input {
+	background-color: var(--bg-primary-dark);
+	width: 100%;
+}
+
+.widget-content {
+	flex-grow: 1;
+
+	position: relative;
+
+	/* magic :3 */
+	contain: strict;
+}
+.pretty .widget-content {
+	backdrop-filter: blur(2px);
+}
+
+.widget.resizing .resize-button {
+	box-shadow: inset 0 0 2px 2px var(--bg-secondary-dark);
+}
+
+.widget > .dragbar {
+	width: 0.66rem;
+	position: absolute;
+	top: 0;
+	right: 0rem;
+	bottom: 0;
+	cursor: ew-resize;
+	transform: translateX(50%);
+	user-select: none;
+}
+
+.widget-quick-actions {
+	/* height: 100%; */
+	display: contents;
+}
+
+.widget-quick-actions > div {
+	/* portal div */
+	display: contents;
+}
+
+.quick-action-scroll {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.widget-drawer-wrapper {
+	position: absolute;
+	inset: 0;
+	z-index: 1;
+}
+
+.widget-drawer-wrapper:not(.show) {
+	display: none;
+	animation: none;
+}
+
+.widget-drawer-wrapper.show {
+	display: block;
+	background-color: rgba(from var(--bg-page) r g b / 0.66);
+}
+.pretty .widget-drawer-wrapper.show {
+	animation: 167ms ease-out;
+	animation-name: drawer-background-show-pretty;
+	backdrop-filter: blur(4px);
+}
+
+@keyframes drawer-background-show {
+	from {
+		background-color: transparent;
+	}
+	to {
+		background-color: rgba(from var(--bg-page) r g b / 0.66);
+	}
+}
+@keyframes drawer-background-show-pretty {
+	from {
+		background-color: transparent;
+		backdrop-filter: blur(0px);
+	}
+	to {
+		background-color: rgba(from var(--bg-page) r g b / 0.66);
+		backdrop-filter: blur(4px);
+	}
+}
+
+.widget-drawer-wrapper .widget-drawer {
+	background-color: var(--bg-primary);
+	height: 100%;
+	max-width: 100%;
+	width: var(--target-width);
+
+	display: flex;
+	flex-direction: column;
+
+	overflow: hidden;
+}
+
+.widget-drawer,
+.widget-drawer.small {
+	/* min widget width - some borders */
+	--target-width: calc(min(max(18vw, 200px) - 4px, var(--widgetWidth)));
+}
+.widget-drawer.large {
+	--target-width: calc(min(max(30vw, 400px) - 4px, var(--widgetWidth)));
+}
+.widget-drawer.max {
+	--target-width: calc(var(--widgetWidth) - 4px);
+}
+
+.pretty .widget-drawer,
+.pretty .widget-drawer.small {
+	animation: drawer-slide-in-smaller 167ms ease-out;
+}
+.pretty .widget-drawer.large {
+	animation: drawer-slide-in-smaller 167ms ease-out;
+}
+.pretty.widget-drawer.max {
+	animation: drawer-slide-in-max 167ms ease-out;
+}
+
+.pretty .widget-drawer.has-animated-once {
+	animation: none;
+	transition: width 167ms ease-out;
+}
+
+/* idk if this is necessary */
+.pretty {
+	.widget:has(.drawer-open-button:hover) {
+		.widget-drawer,
+		.widget-drawer-wrapper,
+		.widget-drawer-content {
+			will-change: width;
+		}
+	}
+	.widget-drawer-wrapper:hover {
+		will-change: width;
+
+		.widget-drawer,
+		.widget-drawer-content {
+			will-change: width;
+		}
+	}
+}
+
+@keyframes drawer-slide-in-smaller {
+	from {
+		width: calc(var(--target-width) * 0.925);
+	}
+	to {
+		width: calc(var(--target-width));
+	}
+}
+
+@keyframes drawer-slide-in-max {
+	from {
+		width: calc(var(--widgetWidth) - 4px);
+	}
+	to {
+		width: calc(var(--widgetWidth) - 4px);
+	}
+}
+
+.widget-drawer-wrapper .widget-drawer .drawer-close-button {
+	height: 3rem;
+}
+
+.widget .drawer-open-button {
+	background-color: inherit;
+}
+
+.widget-drawer > header {
+	border-bottom: 2px solid var(--bg-primary-dark);
+	padding: 1px;
+	padding-bottom: 3px;
+
+	flex-shrink: 0;
+}
+
+.widget-drawer-content {
+	flex-grow: 1;
+	overflow-y: auto;
+
+	/* magic :3 */
+	contain: strict;
+
+	/* don't reflow when animating */
+	width: var(--target-width);
+}
+
+/* portal wrapper */
+.widget-drawer-content > div {
+	display: contents;
+}

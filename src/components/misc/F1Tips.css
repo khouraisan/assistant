@@ -1,0 +1,159 @@
+.tip-dialog {
+	position: absolute;
+	margin: auto;
+	background-color: var(--bg-primary);
+	color: inherit;
+	border: none;
+	outline: none;
+
+	width: min(700px, 100vw - 2rem);
+
+	overflow: hidden;
+	max-height: 78vh;
+	height: 78vh;
+
+	/* this prevents scuff that shouldn't be in the first place */
+	display: flex;
+	flex-direction: column;
+}
+
+.tip-dialog:not([open]) {
+	display: none;
+}
+
+.tip-dialog::backdrop {
+	background-color: rgba(from var(--bg-page) r g b / 0.66);
+}
+
+.fancy .tip-dialog::backdrop {
+	backdrop-filter: blur(4px);
+}
+
+.dialog-header {
+	padding: 1px;
+	height: 3rem;
+	background-color: var(--bg-primary-light);
+	border-bottom: inherit;
+	flex-shrink: 0;
+	z-index: 1;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 2px;
+	box-sizing: content-box;
+	border: 2px solid transparent;
+
+	padding-left: 8px;
+}
+
+.dialog-header h2 {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.dialog-header h2 span {
+	font-size: 1.6rem;
+	text-transform: capitalize;
+}
+
+.dialog-header button {
+	background-color: var(--bg-secondary-light);
+	padding: 0;
+	height: 100%;
+	aspect-ratio: 1;
+	font-size: inherit;
+
+	display: flex;
+	justify-content: center;
+	align-items: center;
+
+	border-radius: 0;
+
+	&:hover {
+		background-color: var(--bg-secondary-lighter);
+	}
+
+	&:disabled {
+		background-color: var(--bg-primary-dark);
+		cursor: not-allowed;
+	}
+}
+
+.tip-dialog-content {
+	height: 100%;
+	overflow-y: scroll;
+}
+
+.tip-dialog-content {
+	padding: 1rem 2rem 2rem 2rem;
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		margin: 3rem 0;
+	}
+
+	h1:first-child,
+	h2:first-child,
+	h3:first-child,
+	h4:first-child,
+	h5:first-child,
+	h6:first-child {
+		margin-top: 0;
+	}
+
+	h1:last-child,
+	h2:last-child,
+	h3:last-child,
+	h4:last-child,
+	h5:last-child,
+	h6:last-child {
+		margin-bottom: 0;
+	}
+
+	h1::after,
+	h2::after {
+		content: "";
+		display: block;
+		position: relative;
+		top: 0;
+		border-bottom: 1px solid hsla(0, 0%, 50%, 0.33);
+	}
+
+	.highlight:not(:first-child) {
+		h1,
+		h2,
+		h3,
+		h4,
+		h5,
+		h6 {
+			margin-top: 3rem;
+		}
+	}
+	.highlight:not(:last-child) {
+		h1,
+		h2,
+		h3,
+		h4,
+		h5,
+		h6 {
+			margin-bottom: 3rem;
+		}
+	}
+
+	.highlight {
+		border-left: 2px solid var(--accent);
+		margin-left: calc((2rem - 2px) / -2);
+		padding-left: calc((2rem - 2px) / 2 - 2px);
+
+		transition: border-color 67ms ease-in-out;
+	}
+
+	.highlight.seen {
+		border-color: transparent;
+	}
+}

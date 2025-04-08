@@ -1,0 +1,168 @@
+.solid-select-container * {
+	line-height: normal;
+}
+
+.solid-select-container *:focus-visible {
+	outline: none !important;
+}
+
+.solid-select-container[data-disabled="true"] {
+	pointer-events: none;
+}
+
+.solid-select-container {
+	position: relative;
+	background-color: var(--bg-primary-light);
+	border-radius: var(--border-radius);
+	min-width: 5rem;
+}
+
+.solid-select-container:has(.solid-select-list) {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
+.solid-select-control {
+	border-radius: inherit;
+	display: grid;
+	grid-template-columns: repeat(1, minmax(0, 1fr));
+	padding: 1rem;
+	outline: 1px solid transparent;
+	color: var(--text-primary);
+}
+
+.solid-select-control[data-disabled="true"] {
+	background-color: var(--bg-primary-dark);
+	opacity: 0.7;
+}
+
+.solid-select-control[data-multiple="true"][data-has-value="true"] {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	gap: 0.25rem;
+}
+
+.solid-select-control:focus-within {
+	outline-color: var(--accent);
+}
+
+.solid-select-placeholder {
+	color: var(--text-primary);
+	opacity: 0.6;
+	grid-column-start: 1;
+	grid-row-start: 1;
+}
+
+.solid-select-single-value {
+	grid-column-start: 1;
+	grid-row-start: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--text-primary);
+}
+
+.solid-select-multi-value {
+	background-color: var(--bg-secondary);
+	border-radius: var(--border-radius);
+	display: flex;
+	align-items: center;
+	font-size: 85%;
+	padding-left: 4px;
+	padding-right: 4px;
+	min-width: 20px;
+	color: var(--text-primary);
+}
+
+.solid-select-multi-value > span {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.solid-select-multi-value-remove {
+	padding-left: 0.25rem;
+	padding-right: 0.25rem;
+}
+
+.solid-select-multi-value-remove:hover {
+	color: var(--accent-light);
+	text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.solid-select-container .solid-select-input {
+	background-color: transparent;
+	border-width: 0px;
+	flex: 1 1 0%;
+	margin: 0px;
+	padding: 0px;
+	/* caret-color: transparent; */
+	grid-column-start: 1;
+	grid-row-start: 1;
+	font: inherit;
+	outline: none;
+	color: var(--text-primary);
+	/* z-index: 1; */
+}
+
+.solid-select-control .solid-select-input:read-only {
+	cursor: default !important;
+	background: transparent;
+}
+
+.solid-select-list {
+	background-color: var(--bg-primary-light);
+	border-radius: var(--border-radius);
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+	margin-top: 1px;
+	max-height: 50vh;
+	width: 100%;
+	overflow-y: auto;
+	padding: 0.5rem;
+	position: absolute;
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+	z-index: 1;
+
+	display: flex;
+	gap: var(--gap);
+	flex-direction: column;
+}
+
+.solid-select-option:hover {
+	background-color: var(--bg-secondary);
+}
+
+.solid-select-option[data-focused="true"] {
+	background-color: var(--bg-secondary-light);
+	color: var(--accent-light);
+}
+
+.solid-select-option mark {
+	background-color: unset;
+	color: var(--accent);
+	text-decoration-line: underline;
+}
+
+.solid-select-option {
+	cursor: pointer;
+	padding: 0.5rem 1rem;
+	user-select: none;
+	color: var(--text-primary);
+	border-radius: calc(var(--border-radius) - 1px);
+}
+
+.solid-select-option[data-disabled="true"] {
+	pointer-events: none;
+	color: var(--text-primary);
+	opacity: 0.5;
+}
+
+.solid-select-list-placeholder {
+	cursor: default;
+	padding: 0.5rem 1rem;
+	user-select: none;
+	color: var(--text-primary);
+	opacity: 0.7;
+}

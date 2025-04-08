@@ -1,0 +1,116 @@
+#main-wrapper {
+	flex-grow: 1;
+	background-color: transparent;
+	color: var(--text-primary);
+	/* margin-top: 1rem; */
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+	display: flex;
+	align-items: stretch;
+
+	overflow-x: scroll;
+	scrollbar-width: auto;
+}
+
+#root > footer {
+	height: var(--large-gap);
+	background-color: inherit;
+}
+
+@media (width < 480px) {
+	#root > footer {
+		display: none;
+	}
+}
+
+main {
+	padding: var(--large-gap);
+	display: flex;
+	flex-grow: 1;
+	flex-shrink: 0;
+	flex-direction: row;
+	gap: var(--large-gap);
+}
+
+@media (width < 480px) {
+	main {
+		padding: var(--gap);
+	}
+}
+
+/* hide other widgets when maximized */
+main:has(.widget.maximized) {
+	& .widget:not(.maximized) {
+		display: none;
+	}
+
+	& .widget.maximized {
+		flex-grow: 1;
+	}
+}
+
+/* hide scrollbar when maximized */
+#main-wrapper:has(.widget.maximized) {
+	overflow: hidden;
+}
+
+#main-wrapper.no-scroll {
+	overflow-x: hidden;
+}
+
+#main-wrapper.no-scroll main {
+	width: 100%;
+}
+
+#main-wrapper.align-center main {
+	justify-content: center;
+}
+
+a[target="_blank"]::after {
+	content: "";
+	display: inline-block;
+	vertical-align: sub;
+	width: 0.7em;
+	height: 0.7em;
+	margin-left: 1px;
+	margin-bottom: 1px;
+	text-decoration: underline;
+
+	background-image: url(/src/assets/external-link-white.svg);
+	background-size: contain;
+	background-position: center;
+}
+
+#widget-flash {
+	width: 0;
+	box-shadow: 0 0 4px 4px var(--accent);
+	opacity: 0;
+
+	display: none;
+}
+
+#main-wrapper:has(.widget.maximized) #widget-flash.animate {
+	display: block;
+	animation: widget-flash 0.34s ease-in-out;
+}
+
+@keyframes widget-flash {
+	0% {
+		opacity: 0.5;
+	}
+	50% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}
+
+#button-progress-slot {
+	position: absolute;
+}
+
+/* Portal wrapper */
+#button-progress-slot > div {
+	display: contents;
+}
