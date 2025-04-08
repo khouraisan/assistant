@@ -7,6 +7,9 @@ A lightweight LLM chat frontend that connects to OpenRouter. Currently in early 
 - More lightweight than SillyTavern
 - Looks nice I think (๑˃ᴗ˂)ﻭ
 
+## Screenshots
+<img alt="Screenshot of UI" src="https://github.com/user-attachments/assets/79612316-8b63-4346-9a39-98c759a3e6d2" width="500">
+
 ## Requirements
 - [Bun](https://bun.sh/) runtime
 
@@ -56,3 +59,6 @@ Ports and hosts are hardcoded.
 
 ## License
 GNU Affero General Public License v3.0
+
+## Note
+The UI has issues. For example, timed (long-press) buttons don't work reliably on "Chrome for Android" and are probably fully broken on "Firefox for Android." I also can't be arsed to add a `.prettierrc` and such right now. Cheers. (￣ω￣)
