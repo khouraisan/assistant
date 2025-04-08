@@ -1133,13 +1133,13 @@ async function streamingResponse(
 	return fullResponse;
 }
 
-export async function main(port: string, listen?: () => void) {
+export async function main(port: number, hostname: string, listen?: () => void) {
 	// Start server
 	await ensureDirectoriesExist();
 	ensureEnv();
 
-	server.listen(port, () => {
-		console.log(`Server running on port ${port}`);
+	server.listen(port, hostname, () => {
+		console.log(`Server running on ${hostname}:${port}`);
 		listen?.();
 	});
 
@@ -1147,5 +1147,17 @@ export async function main(port: string, listen?: () => void) {
 }
 
 if (require.main === module) {
-	main(Bun.env.PORT ?? "3000");
+	const port = Bun.env.PORT;
+	const hostnameIndex = Bun.argv.indexOf("--host");
+	const hostname = hostnameIndex !== -1 ? Bun.argv[hostnameIndex + 1] : "127.0.0.1";
+
+	if (!hostname) {
+		throw new Error("Hostname must be specified after --host");
+	}
+
+	if (port !== undefined && isNaN(+port)) {
+		throw new Error("PORT must be a number");
+	}
+
+	main(port === undefined ? 3000 : +port, hostname);
 }
