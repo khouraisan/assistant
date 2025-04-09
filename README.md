@@ -23,10 +23,14 @@ cd ./deps/solid-select
 bun i
 bun run build
 
-# Build the main project
+# Build the frontend
 cd ../../
 bun i
 bun run build
+
+# Prepare the backend
+cd ./server
+bun i
 ```
 
 ## Running the Server
