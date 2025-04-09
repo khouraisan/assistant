@@ -11,7 +11,7 @@ A lightweight LLM chat frontend that connects to OpenRouter. Currently in early 
 <img alt="Screenshot of UI" src="https://github.com/user-attachments/assets/79612316-8b63-4346-9a39-98c759a3e6d2" width="500">
 
 ## Requirements
-- [Bun](https://bun.sh/) runtime
+- [Bun](https://bun.sh/) runtime (at the time of writing, the lastest versions of Bun occasionally crash due to a regression in their http module. [Downgrade](https://github.com/oven-sh/bun/discussions/6979) to Bun 1.2.5 if you encounter any issues)
 
 ## Installation & Building
 
@@ -38,7 +38,7 @@ bun i
 ```bash
 cd ./server
 OPENROUTER_TOKEN=<your_token> bun run --port <your_port> --host <your_ip> --expose-dist
-# .env is also supported
+# .env is also supported (must be in cwd)
 ```
 
 Default host is 127.0.0.1:3000
