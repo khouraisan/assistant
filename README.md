@@ -11,7 +11,7 @@ A lightweight LLM chat frontend that connects to OpenRouter. Currently in early 
 <img alt="Screenshot of UI" src="https://github.com/user-attachments/assets/79612316-8b63-4346-9a39-98c759a3e6d2" width="500">
 
 ## Requirements
-- [Bun](https://bun.sh/) runtime
+- [Bun](https://bun.sh/) runtime (Any other runtime works as well but you'd have to polyfill/replace Bun.file, Bun.write, Bun.gzipSync, and Bun.gunzipSync)
 
 ## Installation & Building
 
