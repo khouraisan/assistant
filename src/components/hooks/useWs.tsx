@@ -141,7 +141,18 @@ export function useChatWebsocket() {
 			}
 		};
 
-		const onClose = () => removeListeners();
+		const ping = () => {
+			if (sock.readyState === WebSocket.OPEN) {
+				sock.send(JSON.stringify({type: "ping"}));
+			}
+		};
+
+		const pingHandler = setInterval(ping, 30000);
+
+		const onClose = () => {
+			clearInterval(pingHandler);
+			removeListeners();
+		};
 
 		sock.addEventListener("error", onError);
 		sock.addEventListener("close", onClose);
@@ -292,7 +303,7 @@ export function useChatWebsocket() {
 			console.log("WebSocket closed", ev.code, ev.reason);
 			setIsConnected(false);
 			if (reconnect) {
-				setTimeout(() => startConnection(true), 2000);
+				setTimeout(() => queueUntilVisible(() => startConnection(true)), 2000);
 			}
 		};
 
@@ -436,4 +447,20 @@ async function decompressWsEvent(event: MessageEvent): Promise<MessageEvent<any>
 	}
 
 	return event;
+}
+
+function queueUntilVisible(fn: () => void) {
+	if (!document.hidden) {
+		fn();
+		return;
+	}
+
+	console.log("waiting until document visible to run fn", fn);
+	document.addEventListener(
+		"visibilitychange",
+		() => {
+			if (!document.hidden) fn();
+		},
+		{once: true}
+	);
 }

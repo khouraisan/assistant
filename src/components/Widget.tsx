@@ -1,15 +1,24 @@
-import {Accessor, createContext, createEffect, createSignal, Match, onCleanup, onMount, Show, Switch, useContext} from "solid-js";
+import {
+	Accessor,
+	createContext,
+	createEffect,
+	createSignal,
+	lazy,
+	Match,
+	onCleanup,
+	onMount,
+	Show,
+	Suspense,
+	Switch,
+	useContext,
+} from "solid-js";
 import "./Widget.css";
-import ChatWidget from "./chat/ChatWidget";
 import {TbResize} from "solid-icons/tb";
 import {FaSolidArrowsLeftRight, FaSolidPlus, FaSolidXmark} from "solid-icons/fa";
 import {FiMaximize2, FiMinimize2} from "solid-icons/fi";
 import Button from "./Button";
 import {BsThreeDotsVertical} from "solid-icons/bs";
 import {getCaretOffset, isSelectingSelf} from "../util";
-import {SortWidget} from "./chat/SortWidget";
-import CharacterChatWidget from "./chat/CharacterChatWidget";
-import {CharacterManagerWidget} from "./character/CharacterManagerWidget";
 
 export type WidgetProps = {
 	isLastWidget: boolean;
@@ -31,6 +40,8 @@ export type WidgetContext = {
 	setShowDrawer: (value: boolean) => void;
 	showDrawer: Accessor<boolean>;
 	setDrawerSize: (value: "small" | "large" | "max") => void;
+	resizing: Accessor<boolean>;
+	draggingDragbar: Accessor<boolean>;
 };
 
 const WidgetContext = createContext<WidgetContext>();
@@ -42,22 +53,36 @@ export function useWidgetContext(): WidgetContext {
 	return v!;
 }
 
+// Define lazy components
+const ChatWidget = lazy(() => import("./chat/ChatWidget"));
+const CharacterChatWidget = lazy(() => import("./chat/CharacterChatWidget"));
+const CharacterManagerWidget = lazy(async () => ({
+	default: (await import("./character/CharacterManagerWidget")).CharacterManagerWidget,
+}));
+const SortWidget = lazy(async () => ({
+	default: (await import("./chat/SortWidget")).SortWidget,
+}));
+
 export default function Widget(props: WidgetProps) {
 	let widgetRef: HTMLDivElement;
 	let drawerRef: HTMLDivElement;
 	let quickActionsRef: HTMLDivElement;
 
+	const isMobileProbably = () => document.body.clientWidth <= 480 && window.matchMedia("(pointer: coarse)").matches;
+
 	const [title, setTitle] = createSignal<string>(typeToDefautTitle(props.type));
 	const [resizing, setResizing] = createSignal(false);
-	const [maximized, setMaximized] = createSignal(false);
+	const [maximized, setMaximized] = createSignal(isMobileProbably());
 	const [_width, setWidth] = createSignal(0);
 	const cssWidth = () => (maximized() ? undefined : _width() + "px");
 	const [showDrawer, setShowDrawer] = createSignal(false);
 	const [drawerSize, setDrawerSize] = createSignal<"small" | "large" | "max">("small");
 	// Set to true if the widget accesses drawerRef
 	const [isUsingDrawer, setIsUsingDrawer] = createSignal(false);
+	const [isDraggingDragbar, setIsDraggingDragbar] = createSignal(false);
 
 	const initResize = () => {
+		setIsDraggingDragbar(true);
 		document.body.style.cursor = "ew-resize";
 
 		const {left, width: w} = widgetRef!.getBoundingClientRect();
@@ -70,6 +95,7 @@ export default function Widget(props: WidgetProps) {
 			}
 		};
 		const handleMouseUp = () => {
+			setIsDraggingDragbar(false);
 			document.removeEventListener("mousemove", handleMouseMove);
 			document.removeEventListener("mouseup", handleMouseUp);
 			document.body.style.cursor = "";
@@ -80,7 +106,8 @@ export default function Widget(props: WidgetProps) {
 
 	function getRemainingWidth(parentElement: HTMLElement) {
 		const computed = getComputedStyle(parentElement);
-		const parentWidth = parentElement.clientWidth - parseFloat(computed.paddingLeft) - parseFloat(computed.paddingRight);
+		const parentWidth =
+			parentElement.clientWidth - parseFloat(computed.paddingLeft) - parseFloat(computed.paddingRight);
 
 		const gap = parseFloat(computed.gap);
 		// :3
@@ -94,11 +121,21 @@ export default function Widget(props: WidgetProps) {
 	}
 
 	onMount(() => {
-		if (document.body.clientWidth > 480) {
-			setWidth(Math.min((document.body.clientWidth * 5) / 7, Math.max(document.body.clientWidth / 4, getRemainingWidth(widgetRef!.parentElement!))));
+		if (!isMobileProbably()) {
+			setWidth(
+				Math.min(
+					(document.body.clientWidth * 5) / 7,
+					Math.max(document.body.clientWidth / 4, getRemainingWidth(widgetRef!.parentElement!))
+				)
+			);
 		} else {
 			const main = document.querySelector("main")!;
-			setWidth(main.clientWidth - (parseFloat(getComputedStyle(main).paddingLeft) + parseFloat(getComputedStyle(main).paddingRight)));
+			// idk what -1 is for
+			setWidth(
+				-1 +
+					main.clientWidth -
+					(parseFloat(getComputedStyle(main).paddingLeft) + parseFloat(getComputedStyle(main).paddingRight))
+			);
 		}
 		console.log("widget mounted", drawerRef!);
 	});
@@ -131,7 +168,7 @@ export default function Widget(props: WidgetProps) {
 
 	onCleanup(() => observer.disconnect());
 
-	const widgetContextValue = {
+	const widgetContextValue: WidgetContext = {
 		drawer: () => {
 			setIsUsingDrawer(true);
 			return drawerRef!;
@@ -144,6 +181,8 @@ export default function Widget(props: WidgetProps) {
 		setTitle,
 		setShowDrawer,
 		showDrawer,
+		resizing,
+		draggingDragbar: isDraggingDragbar,
 	};
 
 	return (
@@ -153,12 +192,18 @@ export default function Widget(props: WidgetProps) {
 				widget: true,
 				[props.type]: true,
 				resizing: resizing(),
+				"dragging-dragbar": isDraggingDragbar(),
 				maximized: maximized(),
 			}}
 			style={{width: cssWidth(), "--widgetWidth": observedWidth()}}
 		>
 			<header>
-				<button style={{display: isUsingDrawer() ? undefined : "none"}} title="Open drawer" onClick={() => setShowDrawer(true)} class="drawer-open-button">
+				<button
+					style={{display: isUsingDrawer() ? undefined : "none"}}
+					title="Open drawer"
+					onClick={() => setShowDrawer(true)}
+					class="drawer-open-button"
+				>
 					<BsThreeDotsVertical />
 				</button>
 				<WidgetTitle title={title()} onTitleChange={setTitle} />
@@ -170,19 +215,40 @@ export default function Widget(props: WidgetProps) {
 				>
 					<Show when={maximized()} children={<FiMinimize2 />} fallback={<FiMaximize2 />} />
 				</button>
-				<button title="Fill remaining space" class="fill-space-button secondary" onClick={fillRemainingSpace} disabled={shouldDisableFillSpace()}>
+				<button
+					title="Fill remaining space"
+					class="fill-space-button secondary"
+					onClick={fillRemainingSpace}
+					disabled={shouldDisableFillSpace()}
+				>
 					<FaSolidArrowsLeftRight />
 				</button>
-				<button title={resizing() ? "Stop resizing widget" : "Resize widget"} class="resize-button" disabled={maximized()} onClick={() => setResizing(!resizing())}>
+				<button
+					title={resizing() ? "Stop resizing widget" : "Resize widget"}
+					class="resize-button"
+					disabled={maximized()}
+					onClick={() => setResizing(!resizing())}
+				>
 					<TbResize />
 				</button>
 				<Show when={props.onClose}>
-					<Button title="Close widget (hold)" timed={500} color="secondary" class="close-button" onClick={() => props.onClose?.()}>
+					<Button
+						title="Close widget (hold)"
+						timed={500}
+						color="secondary"
+						class="close-button"
+						onClick={() => props.onClose?.()}
+					>
 						<FaSolidXmark />
 					</Button>
 				</Show>
 			</header>
-			<WidgetDrawer show={showDrawer()} onHide={() => setShowDrawer(false)} ref={drawerRef!} drawerSize={drawerSize()} />
+			<WidgetDrawer
+				show={showDrawer()}
+				onHide={() => setShowDrawer(false)}
+				ref={drawerRef!}
+				drawerSize={drawerSize()}
+			/>
 			<div class="widget-content">
 				<WidgetContext.Provider value={widgetContextValue}>
 					<Switch>
@@ -228,7 +294,12 @@ function WidgetQuickActions(props: {ref: HTMLDivElement}) {
 	);
 }
 
-function WidgetDrawer(props: {show: boolean; onHide: () => void; ref: HTMLDivElement; drawerSize: "small" | "large" | "max"}) {
+function WidgetDrawer(props: {
+	show: boolean;
+	onHide: () => void;
+	ref: HTMLDivElement;
+	drawerSize: "small" | "large" | "max";
+}) {
 	let widgetDrawerRef: HTMLDivElement;
 
 	const [hasAnimatedOnce, setHasAnimatedOnce] = createSignal(false);
@@ -317,7 +388,13 @@ function WidgetTitle(props: {title: string; onTitleChange: (newTitle: string) =>
 				onKeyDown={(v) => (v.key === "Enter" && stopEdit(), v.key === "Escape" && discardEdit())}
 				value={props.title}
 			/>
-			<h2 ref={h2Ref!} tabIndex="0" style={{display: editing() ? "none" : undefined}} onClick={handleClick} onKeyDown={handleKeyDown}>
+			<h2
+				ref={h2Ref!}
+				tabIndex="0"
+				style={{display: editing() ? "none" : undefined}}
+				onClick={handleClick}
+				onKeyDown={handleKeyDown}
+			>
 				<span>{props.title}</span>
 			</h2>
 		</div>

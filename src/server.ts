@@ -1,3 +1,5 @@
+import {createSignal} from "solid-js";
+
 export const API_ROOT = import.meta.env.PROD ? window.location.origin : "http://localhost:3000";
 
 export type ChatId = `chat_${number}`;
@@ -40,6 +42,7 @@ export type TavernCharacterData = {
 	notes: string;
 	author: string;
 	version: string;
+	greetings: Array<string>;
 };
 
 export type TavernCharacterDataHead = {
@@ -63,6 +66,14 @@ export type AddMessageOp =
 			message: RequestMessage;
 	  };
 
+export const [serverErrors, setServerErrors] = createSignal<any[]>([]);
+
+function logError(...args: any[]) {
+	console.error(...args);
+	const msg = args.map((v) => JSON.stringify(v)).join(" ");
+	setServerErrors((prev) => [...prev, msg]);
+}
+
 export async function newChat(opts?: {temporary: boolean}): Promise<ChatId | null> {
 	const res = await fetch(`${API_ROOT}/chats/new?temporary=${opts?.temporary ?? false}`, {
 		method: "POST",
@@ -79,7 +90,7 @@ export async function newChat(opts?: {temporary: boolean}): Promise<ChatId | nul
 
 export async function makePermanent(chatId: ChatId): Promise<boolean> {
 	if (!chatId.startsWith("chat_")) {
-		console.error("Invalid chat ID", chatId);
+		logError("Invalid chat ID", chatId);
 		return false;
 	}
 
@@ -127,7 +138,7 @@ export async function loadChats(): Promise<ChatHead[]> {
 	const res = await fetch(`${API_ROOT}/chats?full=` + full.toString());
 
 	if (!res.ok) {
-		console.error("Failed to load chats");
+		logError("Failed to load chats");
 		return [];
 	}
 
@@ -138,7 +149,7 @@ export async function loadChat(chatId: ChatId, full: boolean): Promise<ChatHead 
 	const res = await fetch(`${API_ROOT}/chats/${chatId}?full=` + full.toString());
 
 	if (!res.ok) {
-		console.error("Failed to load chat");
+		logError("Failed to load chat");
 		return null;
 	}
 
@@ -153,7 +164,7 @@ export async function deleteChat(chatId: ChatId): Promise<boolean> {
 	console.log("Response", response);
 
 	if (!response.ok) {
-		console.error("Failed to delete chat", response.status);
+		logError("Failed to delete chat", response.status);
 		return false;
 	}
 
@@ -162,7 +173,7 @@ export async function deleteChat(chatId: ChatId): Promise<boolean> {
 
 export async function renameChat(chatId: ChatId, name: string): Promise<boolean> {
 	if (!chatId.startsWith("chat_")) {
-		console.error("Invalid chat ID", chatId);
+		logError("Invalid chat ID", chatId);
 		return false;
 	}
 
@@ -173,7 +184,7 @@ export async function renameChat(chatId: ChatId, name: string): Promise<boolean>
 	});
 
 	if (!response.ok) {
-		console.error("Failed to rename chat", response.status);
+		logError("Failed to rename chat", response.status);
 		return false;
 	}
 
@@ -188,7 +199,7 @@ export async function modifyMessage(chatId: ChatId, messageId: string, newMessag
 	});
 
 	if (!response.ok) {
-		console.error("Failed to modify message", response.status);
+		logError("Failed to modify message", response.status);
 		return false;
 	}
 
@@ -196,6 +207,10 @@ export async function modifyMessage(chatId: ChatId, messageId: string, newMessag
 }
 
 export async function deleteMessage(chatId: ChatId, messageId: string, below: boolean): Promise<boolean> {
+	if(messageId === "") {
+		logError("Invalid message ID", messageId);
+		return false;
+	}
 	const response = await fetch(`${API_ROOT}/messages/${messageId}?below=${below}`, {
 		method: "DELETE",
 		headers: {"Content-Type": "application/json"},
@@ -203,7 +218,7 @@ export async function deleteMessage(chatId: ChatId, messageId: string, below: bo
 	});
 
 	if (!response.ok) {
-		console.error("Failed to delete message", response.status);
+		logError("Failed to delete message", response.status);
 		return false;
 	}
 
@@ -218,7 +233,7 @@ export async function loadCharacters(): Promise<TavernCharacterHead[]> {
 	});
 
 	if (!res.ok) {
-		console.error("Failed to load characters", res.status);
+		logError("Failed to load characters", res.status);
 		return [];
 	}
 
@@ -232,7 +247,7 @@ export async function loadCharacter(characterId: string, full: boolean): Promise
 	});
 
 	if (!res.ok) {
-		console.error("Failed to load characters", res.status);
+		logError("Failed to load characters", res.status);
 		return null;
 	}
 
@@ -241,6 +256,10 @@ export async function loadCharacter(characterId: string, full: boolean): Promise
 
 export function getCharacterAvatarUrl(id: TavernCharacter["id"]): string {
 	return `${API_ROOT}/characters/${id}/avatar`;
+}
+
+export function getExportUrl(id: TavernCharacter["id"], type: "v2" | "png", attachment: boolean): string {
+	return `${API_ROOT}/characters/${id}/${type}?attachment=${attachment}`;
 }
 
 // Turn UTC date into a Date object
@@ -254,7 +273,6 @@ function reviveMessage(message: any): Message {
 export type OpenRouterModel = {
 	id: `${string}/${string}`;
 	name: string;
-	description: string;
 	pricing: {
 		prompt: number;
 		completion: number;
@@ -268,9 +286,8 @@ let lastRequestTime = 0;
 export function getOpenRouterModels(): Promise<OpenRouterModel[]> {
 	// should work tbh
 	const cache = lastRequestTime + 1000 * 60 > Date.now() ? "default" : "force-cache";
-	return fetch("https://openrouter.ai/api/v1/models", {cache})
-		.then((res) => res.json())
-		.then((v) => v.data);
+	// return fetch("https://openrouter.ai/api/v1/models", {cache})
+	return fetch(`${API_ROOT}/openroutermodels`, {cache}).then((res) => res.json());
 }
 
 export type ChatSettings = {
@@ -298,6 +315,27 @@ export async function setChatSettings(chatId: ChatId, settings: Partial<ChatSett
 	}).then((res) => res.ok);
 }
 
+export async function autogenerateTitle(chatId: ChatId): Promise<string | null> {
+	return fetch(`${API_ROOT}/chats/${chatId}/generate-title`, {
+		method: "POST",
+		headers: {"Content-Type": "application/json"},
+	}).then(async (res) => {
+		if (!res.ok) {
+			const body = await res.json();
+			if (res.status === 400) {
+				logError("Failed to autogenerate title", body);
+				return null;
+			}
+			if (res.status === 503) {
+				logError("Service unavailable", body);
+				return null;
+			}
+			return null;
+		}
+		return res.text();
+	});
+}
+
 export function defaultSettings(): ChatSettings {
 	return {
 		provider: "openrouter",
@@ -318,10 +356,9 @@ export function defaultCharacter(): TavernCharacter {
 			author: "",
 			description: "",
 			nickname: "",
-
 			notes: "",
-
 			version: "",
+			greetings: [],
 		},
 	};
 }

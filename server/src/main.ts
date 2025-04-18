@@ -34,6 +34,12 @@ export function ensureEnv() {
 			"Missing OPENROUTER_TOKEN environment variable. Please get a key at https://openrouter.ai/keys and set it in the environment or create a .env file."
 		);
 	}
+
+	if (!Bun.env.AKASH_TOKEN) {
+		console.warn(
+			"Missing AKASH_TOKEN environment variable. Automatic title generation is disabled. Please get a key for free at https://chatapi.akash.network/ and set it in the environment or create a .env file."
+		);
+	}
 }
 
 async function getChatFilePath(chatId: string): Promise<string> {
@@ -180,12 +186,22 @@ const wss = new WebSocketServer({
 app.use(express.json());
 app.use(cors());
 app.use(compression());
+app.use((req, _, next) => {
+	console.log(`[${req.method} ${req.originalUrl}]:`, JSON.stringify(req.body));
+	next();
+});
 
 app.use(express.static("public"));
 if (Bun.argv.includes("--expose-dist")) {
 	console.warn("--expose-dist=true");
 	app.use(express.static("../dist"));
 }
+
+// disable caching for REST. comes after express.static
+app.use((_, res, next) => {
+	res.header("Cache-Control", "no-store");
+	next();
+});
 
 const connectedClients = new Set<WebSocket>();
 
@@ -236,6 +252,11 @@ wss.on("connection", (ws) => {
 	ws.on("message", async (message) => {
 		try {
 			const data = JSON.parse(message.toString());
+
+			if (data.type === "ping") {
+				ws.send(JSON.stringify({type: "pong"}));
+				return;
+			}
 
 			if (data.type === "generate" || data.type === "regenerate") {
 				const {chatId} = data;
@@ -391,12 +412,80 @@ wss.on("connection", (ws) => {
 				// }
 
 				console.log(data.type + " complete", {chatId});
+
+				console.dir(chat);
+				// Autogenerate title for chat if it's new
+				if (chat.messages.length >= 2 && chat.canAutogenerateTitle) {
+					chat.autogenerateTitle()
+						.then(async (aiTitle) => {
+							if (!aiTitle) return;
+
+							chat.name = aiTitle;
+							chat.canAutogenerateTitle = false;
+
+							await saveChat(chat);
+							notifyClients({
+								type: "notify_chatRenamed",
+								chatId,
+							});
+						})
+						.catch(() => {});
+				}
 			}
 		} catch (error) {
 			console.error("WebSocket message error:", error);
 			ws.send(JSON.stringify({type: "error", message: "Failed to process message"}));
 		}
 	});
+});
+
+app.post("/chats/:chatId/generate-title", validateChatId, async (req, res) => {
+	try {
+		const {chatId} = req.params;
+
+		const chat = await getChat(chatId);
+
+		if (chat === null) {
+			res.status(404).json({error: "Chat not found"});
+			return;
+		}
+
+		if (chat === "error") {
+			res.status(500).json({error: "Failed to load chat"});
+			return;
+		}
+
+		if (chat.messages.length === 0) {
+			res.status(400).json({error: "Chat is empty"});
+			return;
+		}
+
+		if (!Bun.env.AKASH_TOKEN) {
+			res.status(503).json({
+				error: "No AKASH_TOKEN",
+				detail: "Automatic title generation is disabled. Please set the AKASH_TOKEN environment variable.",
+			});
+			return;
+		}
+
+		const title = await chat.autogenerateTitle();
+
+		if (title === null) {
+			res.status(500).json({error: "Failed to generate title", detail: "No title generated"});
+			return;
+		}
+
+		chat.name = title;
+
+		await saveChat(chat);
+
+		notifyClients({type: "notify_chatRenamed", chatId});
+
+		res.send(title);
+	} catch (error) {
+		console.error("Failed to generate title", error);
+		res.status(500).json({error: "Failed to generate title", detail: error?.toString()});
+	}
 });
 
 // REST API Routes
@@ -453,6 +542,8 @@ app.put("/chats/:chatId/rename", validateChatId, async (req, res) => {
 		}
 
 		chat.name = name;
+		// Prevent autogenerating title if the user sets a name
+		chat.canAutogenerateTitle = false;
 
 		notifyClients({type: "notify_chatRenamed", chatId});
 
@@ -1050,6 +1141,133 @@ app.get("/characters/:id/avatar", validateCharacterId, async (req, res) => {
 	}
 });
 
+app.get("/characters/:id/v2", validateCharacterId, async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {attachment: _attachment} = req.query;
+
+		if (_attachment !== undefined && _attachment !== "true" && _attachment !== "false") {
+			res.status(400).json({error: "Invalid attachment parameter"});
+			return;
+		}
+		const attachment = _attachment === "true";
+
+		const character = await getCharacter(id);
+
+		if (!character) {
+			res.status(404).json({error: "Character not found"});
+			return;
+		}
+
+		if (character === "error") {
+			res.status(500).json({error: "Failed to load character"});
+			return;
+		}
+
+		if (attachment) {
+			res.setHeader("Content-Disposition", `attachment; filename="${character.name}.json"`);
+		} else {
+			res.setHeader("Content-Disposition", "inline");
+		}
+
+		res.type("application/json").send(character.encodeIntoV2Json());
+	} catch (error) {
+		res.status(500).json({error: "Failed to fetch character"});
+	}
+});
+
+app.get("/characters/:id/png", validateCharacterId, async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {attachment: _attachment} = req.query;
+
+		if (_attachment !== undefined && _attachment !== "true" && _attachment !== "false") {
+			res.status(400).json({error: "Invalid attachment parameter"});
+			return;
+		}
+		const attachment = _attachment === "true";
+
+		const character = await getCharacter(id);
+
+		if (!character) {
+			res.status(404).json({error: "Character not found"});
+			return;
+		}
+
+		if (character === "error") {
+			res.status(500).json({error: "Failed to load character"});
+			return;
+		}
+
+		const avatar = character.avatar();
+
+		if (!(await avatar.exists())) {
+			res.status(404).json({error: "Avatar not found"});
+			return;
+		}
+
+		const file = await avatar.arrayBuffer();
+
+		const png = character.encodeIntoPNG(file);
+
+		// just in case
+		if (png instanceof ArrayBuffer === false) {
+			res.status(500).json({error: "Failed to encode PNG"});
+			return;
+		}
+
+		res.writeHead(200, {
+			"Content-Type": "image/png",
+			"Content-Length": png.byteLength,
+			"Content-Disposition": attachment ? `attachment; filename="${character.name}.png"` : "inline",
+		});
+
+		res.end(new DataView(png));
+	} catch (error) {
+		res.status(500).json({error: "Failed to fetch character", detail: error?.toString()});
+	}
+});
+
+app.get("/openroutermodels", async (req, res) => {
+	type OpenRouterModel = {
+		id: `${string}/${string}`;
+		name: string;
+		pricing: {
+			prompt: number;
+			completion: number;
+		};
+	};
+
+	try {
+		const response = await fetch("https://openrouter.ai/api/v1/models");
+
+		if (!response.ok) {
+			console.error("Failed to fetch models from OpenRouter", response.statusText);
+			res.status(response.status).json({error: "Failed to fetch models"});
+			return;
+		}
+
+		const models = await response.json();
+
+		res.json(
+			models.data.map(
+				(v: any) =>
+					({
+						id: v.id,
+						name: v.name,
+						pricing: {
+							prompt: v.pricing.prompt,
+							completion: v.pricing.completion,
+						},
+					}) as OpenRouterModel
+			)
+		);
+	} catch (error) {
+		console.error("Error fetching models from OpenRouter:", error);
+		res.status(500).json({error: "Internal server error"});
+	}
+});
+
 // Should still resolve with a partial response on abort
 async function streamingResponse(
 	ws: WebSocket,
@@ -1147,7 +1365,8 @@ export async function main(port: number, hostname: string, listen?: () => void) 
 }
 
 if (require.main === module) {
-	const port = Bun.env.PORT;
+	const portIndex = Bun.argv.indexOf("--port");
+	const port = portIndex !== -1 ? Bun.argv[portIndex + 1] : undefined;
 	const hostnameIndex = Bun.argv.indexOf("--host");
 	const hostname = hostnameIndex !== -1 ? Bun.argv[hostnameIndex + 1] : "127.0.0.1";
 

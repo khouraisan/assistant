@@ -38,8 +38,10 @@ main {
 	}
 }
 
-/* hide other widgets when maximized */
+/* hide other widgets when maximized and fill space */
 main:has(.widget.maximized) {
+	width: 100%; /* i think this is safe. otherwise the widget title will stretch the widget beyond the viewport */
+
 	& .widget:not(.maximized) {
 		display: none;
 	}

@@ -1,4 +1,4 @@
-import {Toaster, type ToasterOptions, ToastProvider} from "solid-notifications";
+import {Toaster, type ToasterOptions, ToastProvider, useToast} from "solid-notifications";
 import "./App.css";
 import Widget, {WidgetProps} from "./components/Widget";
 import Nav from "./Nav";
@@ -6,6 +6,7 @@ import WsContext from "./wsContext";
 import {useChatWebsocket} from "./components/hooks/useWs";
 import {createEffect, createSignal, For, onCleanup} from "solid-js";
 import {F1Tips} from "./components/misc/F1Tips";
+import * as server from "./server";
 
 const toasterOptions: ToasterOptions = {
 	positionX: "right",
@@ -83,6 +84,7 @@ function ToastyApp() {
 		<WsContext.Provider value={hook}>
 			<Toaster {...toasterOptions} />
 			<F1Tips active={tipsActive()} />
+			<ServerErrorNotificationHandler />
 			<div id="button-progress-slot"></div>
 			<Nav
 				isNoScroll={isNoScroll()}
@@ -98,6 +100,7 @@ function ToastyApp() {
 				classList={{
 					// pretty: !window.matchMedia("(prefers-reduced-motion)").matches,
 					pretty: false,
+					"supports-keyboard-inset": "virtualKeyboard" in window.navigator,
 					"no-scroll": isNoScroll(),
 					"align-center": isAlignCenter(),
 				}}
@@ -122,4 +125,26 @@ function ToastyApp() {
 			<footer></footer>
 		</WsContext.Provider>
 	);
+}
+
+function ServerErrorNotificationHandler() {
+	const {notify} = useToast();
+
+	createEffect(() => {
+		const errors = server.serverErrors();
+		console.log("errors", errors.length);
+		if (errors.length === 0) return;
+
+		for (const error of errors) {
+			notify(error.toString(), {
+				type: "error",
+				duration: 5000,
+				dismissOnClick: true,
+			});
+		}
+
+		server.setServerErrors([]); // Clear errors after notifying
+	});
+
+	return null;
 }

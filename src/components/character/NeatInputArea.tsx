@@ -12,34 +12,6 @@ export function NeatInputarea(props: {
 	disabled?: boolean;
 	disabledFlash?: boolean;
 }) {
-	// const splitText = (input: string): NeatInputAreaToken[] => {
-	// 	const quoted = input.split(/(".*?")/).map((v) => {
-	// 		return [v, v.startsWith('"') && v.endsWith('"') ? ["quote" as const] : []] satisfies NeatInputAreaToken;
-	// 	});
-	// 	const italics = quoted
-	// 		.map(([v, tags]) => {
-	// 			return v.split(/(\*.*?\*)/).map((m) => {
-	// 				return [
-	// 					m,
-	// 					m.startsWith("*") && m.endsWith("*") ? [...tags, "italic" as const] : tags,
-	// 				] satisfies NeatInputAreaToken;
-	// 			});
-	// 		})
-	// 		.flat();
-	// 	const macros = italics
-	// 		.map(([v, tags]) => {
-	// 			return v.split(/({{.*?}})/).map((m) => {
-	// 				return [
-	// 					m,
-	// 					m.startsWith("{{") && m.endsWith("}}") ? [...tags, "macro" as const] : tags,
-	// 				] satisfies NeatInputAreaToken;
-	// 			});
-	// 		})
-	// 		.flat();
-
-	// 	return macros.filter(([v]) => v !== "");
-	// };
-
 	const splitText = (input: string): NeatInputAreaToken[] => {
 		const quoted = input.split(/(".*?")/).map((v) => {
 			return [v, v.startsWith('"') && v.endsWith('"') ? ["quote" as const] : []] satisfies NeatInputAreaToken;

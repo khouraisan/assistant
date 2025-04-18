@@ -1,4 +1,3 @@
-import hljs from "highlight.js";
 import * as markdown from "../markdown.ts";
 import * as server from "../../server.ts";
 import {
@@ -20,6 +19,7 @@ import {
 	FaSolidXmark,
 } from "solid-icons/fa";
 import {
+	createComputed,
 	createEffect,
 	createMemo,
 	createRenderEffect,
@@ -28,6 +28,7 @@ import {
 	For,
 	Index,
 	Match,
+	on,
 	onCleanup,
 	onMount,
 	Show,
@@ -36,7 +37,9 @@ import {
 import Button from "../Button";
 import * as utils from "../../util.ts";
 import {renderToString} from "solid-js/web";
-import { useIsConnected } from "../hooks/useIsConnected.ts";
+import {useIsConnected} from "../hooks/useIsConnected.ts";
+import {useWidgetContext} from "../Widget.tsx";
+import {useToast} from "solid-notifications";
 
 export function Messages(props: {
 	ref: HTMLDivElement;
@@ -52,8 +55,11 @@ export function Messages(props: {
 	onDeleteBelow: (id: string) => void;
 	onRegenerate: (id: string) => void;
 	onLastMessageChange: () => void;
+	draggingDragbar: boolean;
 }) {
 	let chatMessagesRef: HTMLDivElement;
+
+	const [lockScroll, setLockScroll] = createSignal(true);
 
 	createEffect((lastMessageLen: null | number) => {
 		void props.streamingMessage;
@@ -63,40 +69,44 @@ export function Messages(props: {
 		const generating = props.isGenerating;
 		// const newMessage = lastMessageLen !== (props.messages?.length ?? -1);
 		const newMessage = false;
-		// TODO: uuh i guess i should only scroll when we're generating here
-		// TODO: and handle the initial scroll when sending in onSend somewhere
-		// TODO: i could check for the messages length and last message id but i dont wanna
-		if (generating || newMessage) {
-			const distFromBottom =
-				chatMessagesRef.scrollHeight - chatMessagesRef.clientHeight - chatMessagesRef.scrollTop;
-			// console.log("scrolling because", generating ? "generating" : "new message", distFromBottom);
-			// TODO: This is ran after streamingMessage is unmounted so the distance will very likely be
-			// TODO: larger than 200.
-			if (distFromBottom < 200) {
-				chatMessagesRef!.scrollTo({top: chatMessagesRef!.scrollHeight});
-			} else {
-				// console.log("not scrolling because dist", distFromBottom);
-			}
-		}
+		// // TODO: uuh i guess i should only scroll when we're generating here
+		// // TODO: and handle the initial scroll when sending in onSend somewhere
+		// // TODO: i could check for the messages length and last message id but i dont wanna
+		// if (generating || newMessage) {
+		// 	const distFromBottom =
+		// 		chatMessagesRef.scrollHeight - chatMessagesRef.clientHeight - chatMessagesRef.scrollTop;
+		// 	// console.log("scrolling because", generating ? "generating" : "new message", distFromBottom);
+		// 	// TODO: This is ran after streamingMessage is unmounted so the distance will very likely be
+		// 	// TODO: larger than 200.
+		// 	if (distFromBottom < 20) {
+		// 		chatMessagesRef!.scrollTo({top: chatMessagesRef!.scrollHeight});
+		// 	} else {
+		// 		// console.log("not scrolling because dist", distFromBottom);
+		// 	}
+		// }
 
-		// TODO: skip this if content-visibility optimisation is disabled
-		// fixed in css??
-		// nope it's not fixed. uncommenting
-		if (lastMessageLen !== null && lastMessageLen !== (props.messages?.length ?? -1) && !generating) {
-			// Means the streaming has ended and a special streaming message got deleted and a
-			// general message got added. This needs to be handled.
-			// Even more jank. I should honestly just remove content-visibility from the messages
+		// // TODO: skip this if content-visibility optimisation is disabled
+		// // fixed in css??
+		// // nope it's not fixed. uncommenting
+		// if (lastMessageLen !== null && lastMessageLen !== (props.messages?.length ?? -1) && !generating) {
+		// 	// Means the streaming has ended and a special streaming message got deleted and a
+		// 	// general message got added. This needs to be handled.
+		// 	// Even more jank. I should honestly just remove content-visibility from the messages
 
-			const distFromBottom =
-				chatMessagesRef.scrollHeight - chatMessagesRef.clientHeight - chatMessagesRef.scrollTop;
-			if (distFromBottom < 200) {
-				setTimeout(() => {
-					chatMessagesRef!.children[chatMessagesRef!.children.length - 1].scrollIntoView({
-						behavior: "instant",
-						block: "start",
-					});
-				}, 10);
-			}
+		// 	const distFromBottom =
+		// 		chatMessagesRef.scrollHeight - chatMessagesRef.clientHeight - chatMessagesRef.scrollTop;
+		// 	if (distFromBottom < 200) {
+		// 		setTimeout(() => {
+		// 			chatMessagesRef!.children[chatMessagesRef!.children.length - 1].scrollIntoView({
+		// 				behavior: "instant",
+		// 				block: "start",
+		// 			});
+		// 		}, 10);
+		// 	}
+		// }
+
+		if (lockScroll()) {
+			chatMessagesRef.scrollTo({top: chatMessagesRef.scrollHeight});
 		}
 
 		return props.messages?.length ?? null;
@@ -133,12 +143,20 @@ export function Messages(props: {
 	};
 
 	return (
-		<div ref={(v) => ((chatMessagesRef = v), (props.ref as any)(v))} class="chat-messages">
+		<div
+			ref={(v) => ((chatMessagesRef = v), (props.ref as any)(v))}
+			class="chat-messages"
+			onScroll={(ev) => {
+				const list = ev.currentTarget;
+				setLockScroll(list.scrollTop + list.clientHeight >= list.scrollHeight - 15);
+			}}
+		>
 			<Show when={props.messages !== null && props.messages.length === 0}>
 				<EmptyChatStub />
 			</Show>
 			{/* suspense won't work because in that case placeholders will flash every time we refetch messages */}
 			<Show when={props.messages !== null} fallback={<PlaceholderMessages />}>
+				{/* Not using For here because it makes messages flash on change. Also scrolling is messed up */}
 				<Index each={props.messages}>
 					{(v, i) => {
 						const messageSignal = createMemo(
@@ -173,6 +191,11 @@ export function Messages(props: {
 									onModifyMessage(i);
 								}}
 								onDeleteBelow={() => {
+									// There is a bug when this sometimes fails to work on mobile.
+									// The reason is likely because the message object returned by v()
+									// has an empty id and that probably happens if we refetch messages
+									// right as we hold the delete button. I'll just handle this edge case
+									// as a noop.
 									props.onDeleteBelow(v().id);
 									onModifyMessage(i);
 								}}
@@ -188,6 +211,7 @@ export function Messages(props: {
 									// and markdown doesn't get rendered
 									props.messages === null ? undefined : props.messages.length - 3 <= i
 								}
+								draggingDragbar={props.draggingDragbar}
 							/>
 						);
 					}}
@@ -206,6 +230,7 @@ export function Messages(props: {
 					isAnyGenerating={true}
 					isFirstAssistantMessage={false}
 					isImmediatelyRelevant={true}
+					draggingDragbar={props.draggingDragbar}
 				/>
 			</Show>
 		</div>
@@ -234,16 +259,56 @@ export function Input(props: {
 		textareaRef!.style.height = `${Math.max(mhPx, textareaRef!.scrollHeight - ch)}px`;
 	});
 
+	const handleOnClick = () => {
+		props.onSend();
+		// If we have virtual keyboard, blur the textarea (the send button in reality probably)
+		// when clicking send to clear :focus-within from .supports-keyboard-inset .chat-input-wrapper:focus-within
+		// and bring the input to its correct position
+		if ("virtualKeyboard" in window.navigator) {
+			(document.activeElement as HTMLElement)?.blur?.();
+		}
+	};
+
+	const [shouldRaise, setShouldRaise] = createSignal(false);
+
+	const setOverlayContent = (v: boolean) => {
+		// Input moves up and down with keyboard like in chatgpt.com
+		if ("virtualKeyboard" in window.navigator) {
+			(window.navigator.virtualKeyboard as any).overlaysContent = v;
+		}
+	};
+
+	const handleTextareaFocus = () => {
+		setOverlayContent(true);
+		setShouldRaise(true);
+	};
+
+	const handleTextareaBlur = () => {
+		setOverlayContent(false);
+		// Hack to let the user click the send button without the wrapper lowering under his finger
+		// 1 instead of 0 just to be sure ig (there is a difference)
+		setTimeout(() => setShouldRaise(false), 1);
+	};
+
 	return (
-		<div class="chat-input-wrapper">
+		<div
+			class="chat-input-wrapper"
+			classList={{
+				raise: shouldRaise(),
+			}}
+		>
 			<textarea
 				ref={textareaRef!}
 				value={props.value}
 				placeholder="Type a message"
 				onInput={(e) => props.setValue(e.currentTarget.value)}
+				onFocus={handleTextareaFocus}
+				onBlur={handleTextareaBlur}
 				onKeyDown={(e) => {
 					if (props.disabled) return;
-					if (e.key === "Enter" && !e.shiftKey) {
+					// Pressed enter without shift key and not on mobile
+					// note: no reason for reactivity here
+					if (e.key === "Enter" && !e.shiftKey && !window.matchMedia("(pointer: coarse)").matches) {
 						e.preventDefault();
 						props.onSend();
 					}
@@ -253,7 +318,7 @@ export function Input(props: {
 				title={props.isGenerating ? "Stop generating" : "Send or continue message"}
 				class="primary"
 				disabled={props.disabled}
-				onClick={() => props.onSend()}
+				onClick={handleOnClick}
 			>
 				<Switch
 					children={
@@ -284,15 +349,33 @@ export function Message(props: {
 	onDelete: () => void;
 	onDeleteBelow: () => void;
 	isImmediatelyRelevant?: boolean;
+	draggingDragbar: boolean;
 }) {
+	let mounted = false;
+
 	const [isEditing, setIsEditing] = createSignal(false);
 	const [isHidden, setIsHidden] = createSignal(false);
 	const [editValue, setEditValue] = createSignal(props.message.text);
+	// This is almost never necessary unless our optimistic updates are blocked by some other requests
+	const [isDeleting, setIsDeleting] = createSignal(false);
 
-	createSignal(() => {
-		// Initialize the edit value when we start editing
+	// Since <Messages> uses an Index, messages are reused on delete. We must reset their state on reuse.
+	createComputed(() => {
+		void props.message.id;
+
+		if(!mounted) return; // Don't reset initially
+
+		setIsEditing(false);
+		setIsHidden(false);
 		setEditValue(props.message.text);
+		setIsDeleting(false);
 	});
+
+	// lmao i never noticed this wasn't an effect... guess this isn't really necessary
+	// createSignal(() => {
+	// Initialize the edit value when we start editing
+	// setEditValue(props.message.text);
+	// });
 
 	const finishEditing = (newText: string) => {
 		if (props.message.text !== newText) {
@@ -319,6 +402,8 @@ export function Message(props: {
 		}
 	};
 
+	onMount(() => (mounted = true));
+
 	return (
 		<div
 			classList={{
@@ -326,6 +411,7 @@ export function Message(props: {
 				[props.message.role]: true,
 				hidden: isHidden(),
 				editing: isEditing(),
+				deleting: isDeleting(),
 			}}
 		>
 			<MessageHeader
@@ -340,8 +426,8 @@ export function Message(props: {
 					}
 				}}
 				onEditDiscard={discardEdit}
-				onDelete={() => props.onDelete()}
-				onDeleteBelow={() => props.onDeleteBelow()}
+				onDelete={() => (setIsDeleting(true), props.onDelete())}
+				onDeleteBelow={() => (setIsDeleting(true), props.onDeleteBelow())}
 				onRegenerate={() => props.onRegenerate()}
 				isEditing={isEditing()}
 				isHidden={isHidden()}
@@ -358,6 +444,7 @@ export function Message(props: {
 				isGeneratingThis={props.isGenerating}
 				isAnyGenerating={props.isAnyGenerating}
 				isImmediatelyRelevant={props.isImmediatelyRelevant}
+				draggingDragbar={props.draggingDragbar}
 			/>
 		</div>
 	);
@@ -476,6 +563,7 @@ function MessageContent(props: {
 	onEditInput: (ev: InputEvent) => void;
 	chatRef: HTMLDivElement | undefined;
 	isImmediatelyRelevant?: boolean;
+	draggingDragbar: boolean;
 }) {
 	let textareaRef: HTMLTextAreaElement;
 	let messageRef: HTMLDivElement;
@@ -504,8 +592,13 @@ function MessageContent(props: {
 	};
 
 	// A hack to get the scroll position before contents get replaced with a textarea
-	createRenderEffect(() => {
+	// createRenderEffect runs DURING the render phase and this should run before it (before textarea is visible)
+	createComputed(() => {
 		if (props.isEditing) {
+			// TODO: There is a bug: because of content-visibility, most messages will have a fixed height
+			// TODO: and therefore if pressing edit brings one into the viewport and it's larger than
+			// TODO: that fixed height, then `savedScrollPosition` will become invalid and stopping
+			// TODO: the edit would restore scroll incorrectly. Not an easy fix.
 			savedScrollPosition = props.chatRef!.scrollTop;
 		} else {
 			savedScrollPosition = null;
@@ -562,7 +655,7 @@ function MessageContent(props: {
 
 				if (block.dataset.highlighted === "yes") continue;
 
-				setTimeout(() => hljs.highlightElement(block as HTMLElement), 0);
+				setTimeout(async () => (await importHljs()).highlightElement(block as HTMLElement), 0);
 			}
 
 			// This unselects the trailing whitespace after an inline code element in most situations
@@ -616,9 +709,16 @@ function MessageContent(props: {
 		"generating-this": props.isGeneratingThis,
 	});
 
+	const styleOnWidgetResize = () => ({
+		width: `${messageRef!.offsetWidth}px`,
+		height: `${messageRef!.offsetHeight}px`,
+		contain: "strict",
+	});
+
 	return (
 		<>
 			{/* gigahack */}
+			{/* TODO: move these somewhere higher in the DOM */}
 			<div class="_svg-FaSolidArrowUp" inert style={{display: "none"}}>
 				<FaSolidArrowUp />
 			</div>
@@ -653,7 +753,10 @@ function MessageContent(props: {
 							innerHTML={compiledMarkdown()}
 							data-relevant={isRelevantToUser() ? "yes" : "no"}
 							// This prevents jank when scrolling after last message streaming finishes
-							style={{"content-visibility": props.isImmediatelyRelevant ? "visible" : undefined}}
+							style={{
+								"content-visibility": props.isImmediatelyRelevant ? "visible" : undefined,
+								...(props.draggingDragbar ? styleOnWidgetResize() : {}),
+							}}
 							// TODO: skip this if content-visibility optimisation is disabled
 							// @ts-expect-error // too lazy to declare this event
 							on:contentvisibilityautostatechange={(ev: ContentVisibilityAutoStateChangeEvent) => {
@@ -704,6 +807,7 @@ export function PlaceholderMessage(props: {role: "user" | "assistant"; lines: nu
 				isGeneratingThis={false}
 				isAnyGenerating={false}
 				isImmediatelyRelevant={true}
+				draggingDragbar={false}
 			/>
 		</div>
 	);
@@ -848,4 +952,14 @@ function ChatListItem(props: {
 			</button>
 		</li>
 	);
+}
+
+async function importHljs() {
+	const a = import("highlight.js/lib/core");
+	const hljs = (await a).default;
+
+	utils.registerHljsLanguages(); // not awaiting
+	hljs.configure({ignoreUnescapedHTML: true});
+
+	return hljs;
 }

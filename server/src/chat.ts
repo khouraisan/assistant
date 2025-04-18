@@ -46,6 +46,7 @@ export class Chat {
 	history: MessageId[];
 	messages: Message[];
 	temporary: boolean = false;
+	canAutogenerateTitle: boolean = true;
 	settings: ChatSettings = defaultSettings();
 
 	constructor(name: string, messages: Message[]) {
@@ -61,6 +62,7 @@ export class Chat {
 		history: MessageId[];
 		messages: Message[];
 		temporary: boolean;
+		canAutogenerateTitle: boolean;
 		settings: ChatSettings;
 	}): Chat {
 		const chat = new Chat(props.name, props.messages);
@@ -70,6 +72,7 @@ export class Chat {
 		chat.messages = props.messages;
 		chat.temporary = props.temporary;
 		chat.settings = props.settings;
+		chat.canAutogenerateTitle = props.canAutogenerateTitle;
 		return chat;
 	}
 
@@ -113,6 +116,7 @@ export class Chat {
 			messages: structuredClone(this.messages.slice(0, messagesIndex)),
 			temporary: this.temporary,
 			settings: this.settings,
+			canAutogenerateTitle: this.canAutogenerateTitle,
 		});
 	}
 
@@ -124,7 +128,8 @@ export class Chat {
 			json.history === undefined ||
 			json.messages === undefined ||
 			json.settings === undefined ||
-			json.temporary === undefined
+			json.temporary === undefined ||
+			json.canAutogenerateTitle === undefined
 		) {
 			throw new Error("Invalid JSON object");
 		}
@@ -148,6 +153,7 @@ export class Chat {
 			messages: json.messages.map((m: any) => Message.fromJSON(m)),
 			temporary: json.temporary,
 			settings: json.settings,
+			canAutogenerateTitle: json.canAutogenerateTitle
 		});
 	}
 
@@ -186,5 +192,48 @@ export class Chat {
 			top_p: this.settings.topP,
 			messages,
 		};
+	}
+
+	async autogenerateTitle(): Promise<string | null> {
+		const token = Bun.env.AKASH_TOKEN;
+		if(!token) {
+			return null;
+		}
+
+		const prompt = `Summarise the following conversation in a short title (between two and four words). Respond only with the title. Do not use formatting.`;
+		const messages = [
+			{role: "system", content: prompt},
+			{role: "user", content: this.messages.map((v) => `# ${v.role}\n${v.text}`).join("\n\n")},
+		];
+
+		const response = await fetch("https://chatapi.akash.network/api/v1/chat/completions", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+			body: JSON.stringify({
+				stream: false,
+				model: "Meta-Llama-4-Maverick-17B-128E-Instruct-FP8",
+				temperature: 0.25,
+				top_p: 0.9,
+				messages,
+			}),
+		});
+
+		if (!response.ok) {
+			console.error("Failed to generate title", await response.text(), {
+				status: response.status,
+				statusText: response.statusText,
+			});
+			throw new Error("Failed to generate title", {cause: response.statusText});
+		}
+
+		const json = await response.json();
+		if (json.error) {
+			throw new Error(json.error);
+		}
+
+		return json.choices[0]?.message?.content ?? null;
 	}
 }

@@ -3,6 +3,7 @@
 // #region imports
 
 import {
+	createComputed,
 	createEffect,
 	createMemo,
 	createReaction,
@@ -67,7 +68,7 @@ import {useIsConnected} from "../hooks/useIsConnected.ts";
 export default function ChatWidget() {
 	const widgetCtx = useWidgetContext();
 
-	let messagesRef: HTMLDivElement | undefined = undefined;
+	let messagesRef: HTMLDivElement | undefined;
 
 	// let mounted = false;
 
@@ -98,12 +99,25 @@ export default function ChatWidget() {
 		// to title widgets themselves not 'chats' in this specific widget.
 		onRenameMessage: (renamedChatId) => {
 			const cId = chatId();
-			if (cId && renamedChatId !== cId) {
-				onSelectChat(cId);
-				console.log(chats().find((v) => v.id === cId)!.name);
+			// TODO: loop possible here if title has an effect that calls endpoints that rename chats?
+			if (cId && renamedChatId === cId) {
+				const title = chats().find((v) => v.id === cId)!.name;
+				widgetCtx.setTitle(title);
+				console.log("rename message", title);
 			}
 		},
 	});
+
+	{
+		let computed = false;
+		createComputed(() => {
+			if (computed) return;
+			if (chats().length > 0) {
+				onSelectChat(chats()[0].id);
+				computed = true;
+			}
+		});
+	}
 
 	const onSelectChat = (id: server.ChatId) => {
 		selectChat(id);
@@ -152,6 +166,94 @@ export default function ChatWidget() {
 		scrollMessagesToBottom();
 	};
 
+	const findObscuredMessage = async (options: {
+		direction: "first" | "last";
+		rootMargin: string;
+		isObscured: (rect: DOMRectReadOnly, root: DOMRectReadOnly) => boolean;
+	}): Promise<HTMLElement | null> => {
+		if (!messagesRef) return null;
+
+		const obs = new IntersectionObserver(() => {}, {
+			root: messagesRef,
+			rootMargin: options.rootMargin,
+		});
+
+		const messages = Array.from(messagesRef.querySelectorAll(".message")) as HTMLElement[];
+		messages.forEach((el) => obs.observe(el));
+
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				const records = obs.takeRecords();
+				obs.disconnect();
+
+				const finder = options.direction === "first" ? "find" : "findLast";
+				const found = messages[finder]((msgEl) => {
+					const record = records.find((r) => r.target === msgEl);
+					if (!record) return false;
+
+					// Handle messages larger than viewport
+					if (record.boundingClientRect.height > record.rootBounds!.height) {
+						return true;
+					}
+
+					return (
+						record.intersectionRatio < 1 &&
+						record.isIntersecting &&
+						options.isObscured(record.intersectionRect, record.rootBounds!)
+					);
+				});
+
+				resolve(found ?? null);
+			}, 0);
+		});
+	};
+
+	const findFirstObscured = () =>
+		findObscuredMessage({
+			direction: "first",
+			rootMargin: "16px 0px 0px 0px",
+			isObscured: (rect, root) => rect.bottom !== root.bottom,
+		});
+
+	const findLastObscured = () =>
+		findObscuredMessage({
+			direction: "last",
+			rootMargin: "0px 0px 16px 0px",
+			isObscured: (rect, root) => rect.top !== root.top,
+		});
+
+	const handleFoundObscured = (el: HTMLElement | null, snap: "start" | "end") => {
+		if (el === null) return;
+		if (
+			(snap === "end" && messagesRef!.scrollHeight - messagesRef!.scrollTop - messagesRef!.clientHeight === 0) ||
+			(snap === "start" && messagesRef!.scrollTop === 0)
+		) {
+			// Don't scroll at edges
+			return;
+		}
+
+		// Instantly scroll to the element - 8 pixels and then slide the rest in slowly
+		// Looks less disorienting that way imo
+		{
+			el.scrollIntoView({
+				// TODO: "start" would be ideal but there's an edge case with messages larger than
+				// the viewport that break scrolling down.
+				block: snap,
+				behavior: "instant",
+			});
+
+			messagesRef!.scrollTo({top: messagesRef!.scrollTop + (snap === "start" ? 8 : -8), behavior: "instant"});
+
+			el.scrollIntoView({
+				block: snap,
+				behavior: "smooth",
+			});
+		}
+
+		el.addEventListener("animationend", () => el.classList.remove("obscured-highlight"), {once: true});
+		el.classList.add("obscured-highlight");
+	};
+
 	return (
 		<>
 			<div
@@ -173,6 +275,7 @@ export default function ChatWidget() {
 						onEdit={onEditMessage}
 						onRegenerate={onRegenerateMessage}
 						onLastMessageChange={() => {}}
+						draggingDragbar={widgetCtx.draggingDragbar()}
 					/>
 					<Input
 						value={input()}
@@ -205,10 +308,14 @@ export default function ChatWidget() {
 					chatId={chatId()}
 					isMessagesOverlow={isMessageOverflow()}
 					maximized={widgetCtx.maximized()}
-					onTop={(fast) => messagesRef!.scrollTo({top: 0, behavior: fast ? undefined : "smooth"})}
-					onBottom={(fast) =>
-						messagesRef!.scrollTo({top: messagesRef!.scrollHeight, behavior: fast ? undefined : "smooth"})
-					}
+					onTop={() => {
+						findFirstObscured().then((el) => handleFoundObscured(el, "start"));
+						// messagesRef!.scrollTo({top: 0, behavior: fast ? undefined : "smooth"});
+					}}
+					onBottom={() => {
+						findLastObscured().then((el) => handleFoundObscured(el, "end"));
+						// messagesRef!.scrollTo({top: messagesRef!.scrollHeight, behavior: fast ? undefined : "smooth"})
+					}}
 					onInsertAssistantMessage={handleInsertAssistantMessage}
 				/>
 			</Portal>
@@ -233,19 +340,22 @@ function ChatQuickActions(props: {
 			>
 				<AiOutlineRobot />
 			</button>
-			<div title="Scroll to top (double click to scroll instantly)" class="quick-action-scroll">
+			<div class="quick-action-scroll">
 				<button
-					onDblClick={() => props.onTop(true)}
-					onClick={() => props.onTop(false)}
+					title="Scroll to top (double click to scroll instantly)"
 					disabled={props.chatId === null || !props.isMessagesOverlow}
+					// onDblClick={() => props.onTop(true)}
+					// onClick={() => props.onTop(false)}
+					onClick={() => props.onTop(false)}
 				>
 					<FaSolidAngleUp size={"1rem"} />
 				</button>
 				<button
 					title="Scroll to bottom (double click to scroll instantly)"
-					onDblClick={() => props.onBottom(true)}
-					onClick={() => props.onBottom(false)}
 					disabled={props.chatId === null || !props.isMessagesOverlow}
+					// onDblClick={() => props.onBottom(true)}
+					// onClick={() => props.onBottom(false)}
+					onClick={() => props.onBottom(false)}
 				>
 					<FaSolidAngleDown size={"1rem"} />
 				</button>
@@ -429,7 +539,11 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 		<div class="chat-settings">
 			<section>
 				<h1>Settings</h1>
-				<OpenRouterModelSelect value={settings.model} onSelect={(v) => setSettings("model", v.id)} />
+				<OpenRouterModelSelect
+					value={settings.model}
+					isLoaded={settingsLoaded()}
+					onSelect={(v) => setSettings("model", v.id)}
+				/>
 				<Slider
 					disabled={!settingsLoaded()}
 					hideNumbers={!settingsLoaded()}
@@ -487,8 +601,11 @@ function ColorSelect(props: {
 	);
 }
 
+// Due to some scuff with solid-select that doesn't respect reactive updates and lots of async shit going on here I gotta also
+// give this an `isLoaded` parameter that indicates if `value` is the actual value and not a defaultSettings placeholder.
 function OpenRouterModelSelect(props: {
 	value: server.OpenRouterModelId;
+	isLoaded: boolean;
 	onSelect: (model: server.OpenRouterModel) => void;
 }) {
 	const [models] = createResource<server.OpenRouterModel[]>(
@@ -504,7 +621,7 @@ function OpenRouterModelSelect(props: {
 		void models.loading;
 
 		const m = models();
-		if (m.length > 0) {
+		if (m.length > 0 && props.isLoaded) {
 			setInitialValue(m.find((v) => v.id === props.value) ?? null);
 		}
 	});

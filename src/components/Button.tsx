@@ -5,10 +5,12 @@ import {children, createEffect, createSignal, JSX, onCleanup, onMount, Show} fro
 type ButtonProps = {
 	title?: string;
 	children?: JSX.Element;
-	// Called on click or when the timed timer is up
+	/** Called on click or when the timed timer is up */
 	onClick: (ev: Omit<Event, "currentTarget"> & {_currentTarget: HTMLElement}) => void;
-	// Called if user stops holding the button while the timer is active
+	/** Called if user stops holding the button while the timer is active and the pointer is inside the button */
 	onTimedCancel?: () => void;
+	/** Called if user stops holding the button while the timer is active and the pointer is outside the button */
+	onTimedDrop?: () => void;
 	disabled?: boolean;
 	timed?: number;
 	color?: "primary" | "secondary" | "accent" | "accent-light";
@@ -19,7 +21,7 @@ type ButtonProps = {
 export default function Button(props: ButtonProps) {
 	let timeout: any | undefined;
 	let buttonRef: HTMLButtonElement;
-	const [active, setActive] = createSignal(false);
+	const [active, setActive] = createSignal<"pointer" | "keyboard" | false>(false);
 
 	// to fix a bug in character picker u know that one
 	let preventNextClick = false;
@@ -41,31 +43,52 @@ export default function Button(props: ButtonProps) {
 	const startTimed = (ev: Event) => {
 		if (!props.timed) return;
 		const target = ev.currentTarget as HTMLElement;
-		clearTimed(false);
-		setActive(true);
+		clearTimed(false, false); // fine to call because timeout is undefined
+		if (ev instanceof PointerEvent) {
+			setActive("pointer");
+		} else if (ev instanceof KeyboardEvent) {
+			setActive("keyboard");
+		} else {
+			throw new Error("Unknown event type");
+		}
+
 		timeout = setTimeout(() => {
+			console.log("timeout");
 			// @ts-ignore
 			ev._currentTarget = target;
 			// @ts-ignore
 			props.onClick(ev);
-			clearTimed(true);
+			clearTimed(true, false);
 			timeout = undefined;
 			preventNextClick = true;
 		}, props.timed);
 	};
 
-	const clearTimed = (ranOut: boolean) => {
+	const clearTimed = (ranOut: boolean, dropSource: false | "keyboard" | "pointer") => {
+		const activeSource = active();
+
+		if (dropSource !== false && activeSource !== dropSource) {
+			return;
+		}
+
 		setActive(false);
+
 		if (timeout) {
-			if (!ranOut) {
-				props.onTimedCancel?.();
+			// console.log("clearTimed", {ranOut, dropSource, activeSource});
+			if (!ranOut && activeSource !== false) {
+				// Check if the user drops the activation with the same input method.
+				if (activeSource === dropSource) {
+					props.onTimedDrop?.();
+				} else {
+					props.onTimedCancel?.();
+				}
 			}
 			clearTimeout(timeout);
 			timeout = undefined;
 		}
 	};
 
-	const clearTimedRanOutFalse = () => clearTimed(false);
+	const clearTimedRanOutFalse = (drop: false | "keyboard" | "pointer") => clearTimed(false, drop);
 
 	const handleKeyDown = (ev: KeyboardEvent) => {
 		if (!props.timed) return;
@@ -76,8 +99,8 @@ export default function Button(props: ButtonProps) {
 
 	const handleKeyUp = (ev: KeyboardEvent) => {
 		if (!props.timed) return;
-		if (ev.key === "Enter") {
-			clearTimed(false);
+		if (ev.key === "Enter" || ev.key === " ") {
+			clearTimed(false, "keyboard");
 		}
 	};
 
@@ -102,6 +125,8 @@ export default function Button(props: ButtonProps) {
 		}, 0);
 	});
 
+	const isMobile = window.matchMedia("(pointer: coarse)").matches;
+
 	return (
 		<button
 			ref={buttonRef!}
@@ -109,7 +134,7 @@ export default function Button(props: ButtonProps) {
 				timed: props.timed !== undefined,
 				[props.color!]: true,
 				[props.class!]: true,
-				active: active(),
+				active: active() !== false,
 			}}
 			style={props.timed !== undefined ? {"transition-duration": `${props.timed}ms`} : undefined}
 			title={props.title}
@@ -122,12 +147,21 @@ export default function Button(props: ButtonProps) {
 			// onMouseLeave={clearTimedRanOutFalse}
 			// onMouseUp={clearTimedRanOutFalse}
 			onPointerDown={handleMouseDown}
-			onPointerLeave={clearTimedRanOutFalse}
-			onPointerUp={clearTimedRanOutFalse}
-			onFocusOut={clearTimedRanOutFalse}
+			onPointerLeave={() => {
+				clearTimedRanOutFalse("pointer");
+			}}
+			onPointerUp={() => {
+				clearTimedRanOutFalse(false);
+			}}
+			onBlur={() => {
+				clearTimedRanOutFalse("keyboard");
+			}}
+			on:dragstart={(ev) => ev.preventDefault()} // for phone(not tested)
+			on:select={(ev) => ev.preventDefault()} // for phone(not tested)
 			on:contextmenu={{
 				capture: true,
 				handleEvent(ev) {
+					if (!isMobile) return;
 					console.log("contextmenu", ev.target);
 					ev.stopImmediatePropagation();
 					ev.preventDefault();

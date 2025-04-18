@@ -163,6 +163,18 @@
 	padding: 0.9rem;
 }
 
+.character-editor .export-character-detail {
+	display: flex;
+	flex-direction: row;
+	gap: inherit;
+}
+
+.character-editor .export-character-detail button {
+	line-height: 1;
+	display: flex;
+	align-items: center;
+}
+
 .character-editor-top {
 	display: flex;
 	gap: var(--large-gap);

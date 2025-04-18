@@ -1,9 +1,10 @@
 import {Message, type MessageId} from "./message";
 import * as openrouter from "./provider/openrouter";
-import * as macros from "./macros";
+import * as png from "./png";
 import type {BunFile} from "bun";
 import path from "path";
 import {CHAR_AVATAR_DIR} from "./main";
+import {characterToV2} from "./taverncard";
 
 export type TavernCharacterData = {
 	nickname: string;
@@ -11,6 +12,7 @@ export type TavernCharacterData = {
 	notes: string;
 	author: string;
 	version: string;
+	greetings: Array<string>;
 };
 
 export type TavernCharacterDataHead = {
@@ -37,6 +39,7 @@ export class TavernCharacter {
 			notes: "",
 			author: "",
 			version: "0.0.0",
+			greetings: [],
 		};
 	}
 
@@ -94,5 +97,18 @@ export class TavernCharacter {
 			name: json.name,
 			data: json.data as TavernCharacterData,
 		});
+	}
+
+	encodeIntoPNG(maybePng: ArrayBuffer): ArrayBuffer {
+		const jsonString = this.encodeIntoV2Json();
+		// TODO: remove this when importing characters with invariants is implemented
+		maybePng = png.removeNonEssentialChunks(maybePng);
+		// turns out 'chara' isn't capitalised
+		return png.addTextChunk(maybePng, "chara", jsonString);
+	}
+
+	encodeIntoV2Json(): string {
+		const chara = characterToV2(this);
+		return JSON.stringify(chara);
 	}
 }

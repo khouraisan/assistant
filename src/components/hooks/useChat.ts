@@ -131,6 +131,22 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 		removeHandlers(generateCallback, notifyCallback);
 	});
 
+	const ensureStreamingMessageExists = (id: string, model: string) => {
+		if (streamingMessage() === null) {
+			setStreamingMessage({
+				id,
+				content: "",
+				model,
+			});
+		}
+	};
+
+	const onMsgStart = (msg: Extract<GenerateMessage, {type: "start"}>) => {
+		updateMessages();
+		setIsGenerating(true);
+		// ensureStreamingMessageExists(msg.messageId, msg.model);
+	};
+
 	const generateCallback = (msg: GenerateMessage) => {
 		const cId = chatId();
 
@@ -139,19 +155,31 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 
 		switch (msg.type) {
 			case "start":
-				refetchMessages();
-				setIsGenerating(true);
-				setStreamingMessage({
-					id: msg.messageId,
-					content: "",
-					model: msg.model,
-				});
+				ensureStreamingMessageExists(msg.messageId, msg.model);
+				onMsgStart(msg);
 				break;
 			case "text":
-				setStreamingMessage((v) => ({id: v!.id, model: v!.model, content: v!.content + msg.text}));
+				// ? This ensures that if the user opens a new chat widget while generating a message
+				// ? it will react in some way at least. It's not possible to fully sync
+				// ? generations because `generationChunk` doesn't have a messageId
+				// ? and we can't query an in-progress message from the server.
+				// ?
+				// ? This simply shows an empty streamingMessage until we're done.
+				// FIXME: Regenerating a message at any position in chat still shows a streaming message at the end
+				ensureStreamingMessageExists("fake", "unknown");
+				if (!isGenerating()) {
+					setIsGenerating(true);
+				}
+
+				if (streamingMessage()!.id !== "fake") {
+					setStreamingMessage((v) => ({id: v!.id, model: v!.model, content: v!.content + msg.text}));
+				}
 				break;
 			case "end":
+				ensureStreamingMessageExists("fake", "unknown");
+
 				setIsGenerating(false);
+				console.log("end", streamingMessage(), messages());
 
 				const id = streamingMessage()!.id;
 				const index = messages()!.findIndex((v) => v.id === id);
@@ -236,8 +264,8 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 				})();
 				break;
 			case "notify_chatCreated":
+			case "notify_chatModified": //? < Should I also handle renaming here?
 			case "notify_chatDeleted":
-			case "notify_chatModified":
 				refetchChatHeads();
 				break;
 		}
@@ -298,6 +326,8 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 	};
 
 	const onEditMessage = async (id: string, newMessage: server.RequestMessage) => {
+		if (id === "") return;
+
 		console.log("Edit", id, newMessage);
 
 		const msg = messages()!;
@@ -314,6 +344,8 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 	};
 
 	const onDeleteMessage = async (id: string) => {
+		if (id === "") return;
+
 		const msg = messages()!;
 		const isLast = msg[msg.length - 1]?.id === id;
 		const optimisticMessages = msg.filter((v) => v.id !== id);
@@ -326,10 +358,13 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 		if (isLast) {
 			await refetchChatHead(chatId()!);
 		}
+		console.log("messages.state", messages.state);
 		await refetchMessages();
 	};
 
 	const onDeleteMessageBelow = async (id: string) => {
+		if (id === "") return;
+
 		const msg = messages()!;
 		const idIndex = msg.findIndex((v) => v.id === id);
 		const optimisticMessages = msg.slice(0, idIndex);
@@ -344,11 +379,13 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 		await refetchMessages();
 	};
 
-	const onRegenerateMessage = (messageId: string) => {
+	const onRegenerateMessage = (id: string) => {
+		if (id === "") return;
+
 		const cId = chatId();
 		if (cId === null) return;
 
-		regenerate(cId, messageId);
+		regenerate(cId, id);
 	};
 
 	const handleInsertAssistantMessage = async () => {

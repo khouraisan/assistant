@@ -4,7 +4,7 @@ import {WidgetProps} from "./components/Widget";
 import "./Nav.css";
 import {BiRegularConversation} from "solid-icons/bi";
 import {CgAlignCenter, CgAlignLeft, CgArrowsScrollH, CgScrollH} from "solid-icons/cg";
-import {FaSolidUser} from "solid-icons/fa";
+import {FaSolidAddressCard, FaSolidUser} from "solid-icons/fa";
 import {TbSquareF1, TbSquareF1Filled} from "solid-icons/tb";
 import {getStats} from "./components/hooks/useWs";
 import {createSignal, onCleanup} from "solid-js";
@@ -53,8 +53,12 @@ export default function Nav(props: {
 				>
 					<FaSolidUser size={"1.5rem"} />
 				</Button>
-				<Button title="Add empty widget" color="accent" onClick={() => props.onAddWidget("empty")}>
-					<RiSystemCheckboxBlankLine size={"1.8rem"} />
+				<Button
+					title="Add character manager widget"
+					color="accent"
+					onClick={() => props.onAddWidget("character-manager")}
+				>
+					<FaSolidAddressCard size={"1.5rem"} />
 				</Button>
 			</div>
 		</nav>

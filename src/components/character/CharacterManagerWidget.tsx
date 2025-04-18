@@ -19,7 +19,7 @@ import {Portal} from "solid-js/web";
 import {deepEquals, getUpdatedProperties, isSelectingSelf} from "../../util.ts";
 import Button from "../Button.tsx";
 import "./CharacterManagerWidget.css";
-import {FaSolidFloppyDisk, FaSolidRotateLeft, FaSolidTrashCan} from "solid-icons/fa";
+import {FaSolidFileExport, FaSolidFloppyDisk, FaSolidRotateLeft, FaSolidTrashCan} from "solid-icons/fa";
 import {createStore, reconcile} from "solid-js/store";
 import {trackStore} from "@solid-primitives/deep";
 import {NotifyMessage} from "../hooks/useWs.tsx";
@@ -141,6 +141,8 @@ const myUnwrap = <T,>(obj: T): T => {
 function CharacterEditor(props: {currentCharacterId: string | null}) {
 	let mounted = false;
 
+	const [showExport, setShowExport] = createSignal(false);
+
 	const [character, {refetch, mutate: setCharacter}] = createResource(
 		() => props.currentCharacterId,
 		async (id) => {
@@ -180,16 +182,24 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 
 	onMount(() => (mounted = true));
 
+	const greetingSignal = () => unsavedCharacter.data.greetings[0] ?? "";
+
 	return (
 		<Show when={character() !== null} fallback={<h2>Select a character</h2>}>
 			<div class="character-editor">
 				<header>
+					<ExportCharacterButton
+						disabled={characterChanged()}
+						showDetail={showExport()}
+						setShowDetail={(v) => setShowExport(v)}
+						character={character()!}
+					/>
 					<Button
 						disabled={!characterChanged()}
 						timed={500}
 						color="secondary"
 						onClick={() => {}}
-						class="save-character"
+						class="revert-character"
 						title="Revert changes"
 					>
 						<FaSolidRotateLeft size={"1.66rem"} />
@@ -233,17 +243,65 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 						/>
 					</section>
 				</section>
-				{/* <textarea
-					class="description-editor"
-					placeholder="Character description"
-					value={unsavedCharacter.data.description}
-				/> */}
 				<NeatInputarea
 					placeholder="Character description"
 					value={unsavedCharacter.data.description}
 					onInput={(v) => setUnsavedCharacter("data", "description", v)}
 				/>
+				<NeatInputarea
+					placeholder="Greeting"
+					value={greetingSignal()}
+					onInput={(v) => {
+						if (v === "") {
+							setUnsavedCharacter("data", "greetings", []);
+						} else {
+							setUnsavedCharacter("data", "greetings", 0, v);
+						}
+					}}
+				/>
 			</div>
 		</Show>
+	);
+}
+
+function ExportCharacterButton(props: {
+	disabled: boolean;
+	showDetail: boolean;
+	setShowDetail: (show: boolean) => void;
+	character: server.TavernCharacter;
+}) {
+	const exportChar = (type: "v2" | "png") => {
+		const a = document.createElement("a");
+		a.href = server.getExportUrl(props.character.id, type, true);
+		a.download = `${props.character.name}.png`;
+		a.click();
+	};
+
+	const buttonTitle = () => {
+		if (props.disabled) return "Cannot export when unsaved";
+		if (props.showDetail) return "Hide export options";
+		return "Show export options";
+	};
+
+	return (
+		<>
+			<div style={{display: props.showDetail ? undefined : "none"}} class="export-character-detail">
+				<Button color="accent" onClick={() => exportChar("v2")} class="export-json" title="Export as JSON">
+					JSON
+				</Button>
+				<Button color="accent" onClick={() => exportChar("png")} class="export-json" title="Export as PNG">
+					PNG
+				</Button>
+			</div>
+			<Button
+				disabled={props.disabled}
+				color={props.showDetail ? "primary" : "secondary"}
+				onClick={() => props.setShowDetail(!props.showDetail)}
+				class="export-character"
+				title={buttonTitle()}
+			>
+				<FaSolidFileExport size={"1.66rem"} />
+			</Button>
+		</>
 	);
 }
