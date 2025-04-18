@@ -20,7 +20,7 @@
 	flex-grow: 1;
 	overflow-x: hidden;
 	overflow-y: auto;
-	padding-bottom: var(--large-gap);
+	/* padding-bottom: var(--large-gap); */
 
 	contain: strict;
 
@@ -51,10 +51,25 @@
 	gap: 4px;
 	z-index: 1;
 
-	--textarea-height: 3lh;
+	--textarea-height: 1lh;
 	/* textarea height + padding + border */
 	/* this is necessary to stop setting textarea height to 0 from affecting the scroll position of the chat */
-	min-height: calc(var(--textarea-height) + var(--textarea-padding) * 2 + 2px);
+	--input-wrapper-min-height: calc(var(--textarea-height) + var(--textarea-padding) * 2 + 2px);
+	min-height: var(--input-wrapper-min-height);
+}
+
+.supports-keyboard-inset .chat-input-wrapper.raise {
+	transform: translateY(calc(var(--input-wrapper-min-height) - env(keyboard-inset-bottom)));
+	max-height: env(keyboard-inset-height);
+	margin-top: calc(-1 * var(--input-wrapper-min-height));
+
+	& > textarea {
+		/* textarea is box-sizing: content-box unlike chat-input-wrapper. 12 here is the padding and the border */
+		max-height: calc(env(keyboard-inset-height) - 12px);
+	}
+}
+.supports-keyboard-inset .chat-widget:has(.chat-input-wrapper.raise) .chat-messages {
+	padding-bottom: env(keyboard-inset-bottom);
 }
 
 .chat-input-wrapper > textarea {
@@ -65,7 +80,8 @@
 	/* inherited from index.css */
 	/* border: 1px solid var(--bg-primary); */
 
-	min-height: var(--textarea-height);
+	/* idk where +4px came from */
+	min-height: calc(var(--textarea-height) + 4px);
 	box-sizing: content-box;
 }
 
@@ -79,11 +95,18 @@
 .message {
 	background-color: rgb(from var(--bg-secondary-dark) r g b / 0.166);
 	padding: var(--large-gap);
+	/* gap - border */
+	padding-left: calc(var(--large-gap) - 2px);
 	/* font-size: 1.4rem; */
 	font-size: 1.6rem;
 }
 .pretty .message {
 	backdrop-filter: blur(4px);
+}
+
+.message.deleting {
+	opacity: 0.5;
+	pointer-events: none;
 }
 
 .message.user {
@@ -100,6 +123,19 @@
 
 	& .message-header {
 		margin-bottom: 0;
+	}
+}
+
+.message.obscured-highlight {
+	animation: obscured-highlight 100ms linear;
+}
+
+@keyframes obscured-highlight {
+	0% {
+		background-color: rgb(from var(--bg-secondary-dark) r g b / 0.166);
+	}
+	100% {
+		background-color: rgb(from var(--accent) r g b / 0.166);
 	}
 }
 
@@ -185,12 +221,18 @@
 .message-content ul,
 .message-content blockquote,
 .message-content pre {
-	/* ideally 1lh to minimize shift between edit textarea but smaller margin looks better */
 	margin-block: 0.5lh;
+}
 
+.message-content > p,
+.message-content > ol,
+.message-content > ul,
+.message-content > blockquote,
+.message-content > pre {
 	&:first-child {
 		margin-block-start: 0;
 	}
+
 	&:last-child {
 		margin-block-end: 0;
 	}
@@ -200,7 +242,8 @@
 	margin-block: 0;
 }
 
-.message-content em {
+.message-content em,
+.message-content strong {
 	color: var(--accent-lighter);
 }
 
@@ -211,6 +254,13 @@
 	&::after {
 		content: none;
 	}
+}
+
+.message-content blockquote {
+	margin: 0;
+	padding-left: 1rem;
+	border-left: 3px solid var(--bg-secondary-light);
+	background-color: hsla(from var(--bg-secondary-dark) h s calc(l * 0.8) / 0.5);
 }
 
 .message-content pre,
@@ -224,7 +274,7 @@
 	flex-direction: row;
 	justify-content: space-between;
 
-	margin: -1rem;
+	margin: calc(-1 * var(--gap)) calc(-1 * var(--large-gap));
 	margin-bottom: 0;
 	padding: var(--gap) var(--large-gap);
 	background-color: var(--bg-secondary-dark);
@@ -319,8 +369,10 @@
 	resize: vertical;
 	font-size: inherit;
 	/* line + padding + border */
-	min-height: calc(1lh + 1rem + 2px);
+	min-height: calc(1lh + 2px);
 	max-height: 50vh;
+	padding: 0 var(--textarea-padding);
+	line-height: 1.25;
 }
 
 .message-header-options button.discard-edit {

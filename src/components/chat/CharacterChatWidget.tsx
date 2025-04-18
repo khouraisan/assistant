@@ -50,8 +50,6 @@ import {SolidMarkdown} from "solid-markdown";
 import {useWs} from "../../wsContext.ts";
 import Button from "../Button.tsx";
 import rehypeRaw from "rehype-raw";
-import hljs from "highlight.js";
-import "../hljs-theme.css";
 import {IoOptions} from "solid-icons/io";
 import {createAsyncOptions, createOptions, Select} from "@thisbeyond/solid-select";
 import Slider from "../Slider.tsx";
@@ -186,6 +184,7 @@ export default function CharacterChatWidget() {
 						onEdit={onEditMessage}
 						onRegenerate={onRegenerateMessage}
 						onLastMessageChange={() => {}}
+						draggingDragbar={widgetCtx.draggingDragbar()}
 					/>
 					<Input
 						value={input()}

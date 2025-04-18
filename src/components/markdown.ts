@@ -37,27 +37,47 @@ function quotesToBlockquoteToken(input: string, quoteCount: number) {
 	// I DON'T like this, but silly exactly this solution in its code grrr...
 	input = input.replaceAll(/<([^>]+?)>/g, (_, cg1) => `<${cg1.replaceAll('"', "\uffff")}>`);
 
-	let hasLastUnclosed = quoteCount % 2 === 1;
-	if (hasLastUnclosed) {
-		input = input + '"';
-	}
-
 	const codeBlocks = Array.from(input.matchAll(/```/g), (match) => match.index!);
 	let inCodeBlock = false;
 	const codeBlockRanges = codeBlocks.flatMap((start, i) => {
-		if (inCodeBlock) {
-			inCodeBlock = false;
+		if (!inCodeBlock) {
+			inCodeBlock = true;
 			return [[start, codeBlocks[i + 1] ?? input.length]];
 		} else {
-			inCodeBlock = true;
+			inCodeBlock = false;
 			return [];
 		}
 	});
 
-	input = input.replaceAll(/".*?"/gs, (match) => {
+	let offset = 0;
+	input = input.replaceAll(/".*?("|\n\n|$)/g, (match, endSeq) => {
+		if (endSeq !== '"') {
+			// -0 would count at normal 0
+			const sliceTo = endSeq.length > 0 ? -endSeq.length : undefined;
+			match = match.slice(0, sliceTo) + '"' + endSeq;
+
+			// Adjust code block ranges after this point
+			for (let i = 0; i < codeBlockRanges.length; i++) {
+				if (codeBlockRanges[i][0] > offset) {
+					codeBlockRanges[i][0] += 1;
+					codeBlockRanges[i][1] += 1;
+				}
+			}
+			offset += 1;
+		}
+
+		return match;
+	});
+
+	// input = input.replaceAll(/".*?"/gs, (match) => {
+	input = input.replaceAll(/".*?("|\n\n|$)/g, (match, endSeq) => {
 		const index = input.indexOf(match);
 
-		if (codeBlockRanges.some(([start, end]) => index >= start && index < end)) {
+		if (
+			codeBlockRanges.some(([start, end]) => {
+				return index >= start && index < end;
+			})
+		) {
 			return match;
 		}
 
