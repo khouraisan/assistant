@@ -1,0 +1,12 @@
+volumes:
+  assistant-data:
+
+services:
+  server:
+    build: .
+    volumes:
+      - assistant-data:/app/data
+    environment:
+      - OPENROUTER_TOKEN=sk-or-v1-abloobloo-example-text
+    ports:
+      - "3000:3000"

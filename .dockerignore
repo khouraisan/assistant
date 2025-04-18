@@ -1,3 +1,5 @@
+## The entire .gitignore
+
 # Logs
 logs
 *.log
@@ -26,6 +28,14 @@ repomix-output.xml
 test.html
 test.ts
 
-# Local docker-compose.yml, potentially with OpenRouter keys registered
+## Other stuff
+
+# docker files
+Dockerfile
+.dockerignore
 docker-compose.yml
+
+# git
+.git
+.gitignore
 
