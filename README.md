@@ -13,6 +13,8 @@ A lightweight LLM chat frontend that connects to OpenRouter. Currently in early 
 ## Requirements
 - [Bun](https://bun.sh/) runtime (Any other runtime works as well but you'd have to polyfill/replace Bun.file, Bun.write, Bun.gzipSync, and Bun.gunzipSync)
 
+At the time of writing, the lastest versions of Bun occasionally crash due to a regression in their http module. [Downgrade](https://github.com/oven-sh/bun/discussions/6979) to Bun 1.2.5 if you encounter any issues
+
 ## Installation & Building
 
 Clone the repository and build the project:
