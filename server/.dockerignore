@@ -1,0 +1,11 @@
+# the entire .gitignore
+node_modules
+data
+.env
+test-data
+
+# docker
+.dockerignore
+
+# git
+.gitignore

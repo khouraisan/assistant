@@ -1,0 +1,12 @@
+# the entire gitignore
+node_modules
+types
+dist
+.vscode
+
+# docker
+Dockerfile
+.dockerignore
+
+# git
+.gitignore

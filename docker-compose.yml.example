@@ -1,0 +1,13 @@
+volumes:
+  assistant-data:
+
+services:
+  server:
+    build: .
+    volumes:
+      - assistant-data:/app/data
+    environment:
+      - OPENROUTER_TOKEN=<your_token>
+      - AKASH_TOKEN=<your_token>
+    ports:
+      - "3000:3000"
