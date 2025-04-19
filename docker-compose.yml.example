@@ -7,6 +7,7 @@ services:
     volumes:
       - assistant-data:/app/data
     environment:
-      - OPENROUTER_TOKEN=sk-or-v1-abloobloo-example-text
+      - OPENROUTER_TOKEN=<your_token>
+      - AKASH_TOKEN=<your_token>
     ports:
       - "3000:3000"
