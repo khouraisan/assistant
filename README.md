@@ -37,7 +37,7 @@ bun i
 
 ```bash
 cd ./server
-OPENROUTER_TOKEN=<your_token> bun run --port <your_port> --host <your_ip> --expose-dist
+OPENROUTER_TOKEN=<your_token> AKASH_TOKEN=<your_token> bun run --port <your_port> --host <your_ip> --expose-dist
 # .env is also supported (must be in cwd)
 ```
 
@@ -65,4 +65,4 @@ Ports and hosts are hardcoded.
 GNU Affero General Public License v3.0
 
 ## Note
-The UI has issues. For example, timed (long-press) buttons don't work reliably on "Chrome for Android" and are probably fully broken on "Firefox for Android." I also can't be arsed to add a `.prettierrc` and such right now. Cheers. (￣ω￣)
+I can't be arsed to add a `.prettierrc` and such right now. Cheers. (￣ω￣)
