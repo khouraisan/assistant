@@ -80,7 +80,7 @@ class AstBuilder {
 					return ret;
 				}
 				case "\\": {
-					cur.push(this.s.length > this.p ? this.s[this.p + 1] : "\\");
+					cur.push(this.s.length > this.p + 1 ? this.s[this.p + 1] : "\\");
 					this.p += 2;
 					break;
 				}
