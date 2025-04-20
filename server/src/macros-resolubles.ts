@@ -17,11 +17,6 @@ export interface Resoluble {
 	 * Resolves the Resoluble, coerces it into a string if it hasn't been resolved yet.
 	 */
 	resolve(): string;
-
-	/**
-	 * Flattens the Resoluble into a simpler Resoluble.
-	 */
-	flatten(): Resoluble;
 }
 
 /**
@@ -40,10 +35,6 @@ export class ResolubleText implements Resoluble {
 
 	public resolve(): string {
 		return this.s;
-	}
-
-	public flatten(): Resoluble {
-		return this;
 	}
 }
 
@@ -67,29 +58,6 @@ export class ResolubleArray implements Resoluble {
 
 	public resolve(): string {
 		return this.rs.map((r) => r.resolve()).join("");
-	}
-
-	public flatten(): ResolubleArray {
-		//resolve and concatenate what we can resolve,
-		//flatten what we can't
-		const ret: Resoluble[] = [];
-		let cur: string[] = [];
-
-		for (const r of this.rs) {
-			if (r.poll()) {
-				cur.push(r.resolve());
-			} else {
-				ret.push(new ResolubleText(cur.join("")));
-				ret.push(r.flatten());
-				cur = [];
-			}
-		}
-
-		if (cur.length > 0) {
-			ret.push(new ResolubleText(cur.join("")));
-		}
-
-		return new ResolubleArray(ret);
 	}
 }
 
@@ -171,18 +139,6 @@ export class ResolubleMacro implements Resoluble {
 			return this.resultResoluble.resolve();
 		} else return "[MACRO UNRESOLVED]";
 	}
-
-	public flatten(): ResolubleMacro {
-		if (this.resultResoluble) {
-			return this;
-		}
-
-		return new ResolubleMacro(
-			this.macroName.flatten(),
-			this.argsResolubles.map((r) => r.flatten()),
-			this.context,
-		);
-	}
 }
 
 /**
@@ -232,14 +188,6 @@ export class ResolubleSetLocalVar implements Resoluble {
 					this.varValue.resolve() +
 					"]";
 	}
-
-	public flatten(): Resoluble {
-		if (this.poll()) {
-			return new ResolubleText("");
-		}
-
-		return this;
-	}
 }
 
 /**
@@ -279,11 +227,5 @@ export class ResolubleGetLocalVar implements Resoluble {
 		}
 
 		return this.context.getVar(this.varName.resolve()).resolve();
-	}
-
-	//Ensure vars are always resolved as late as possible, to make
-	//sure they all have the same value.
-	public flatten(): Resoluble {
-		return this;
 	}
 }

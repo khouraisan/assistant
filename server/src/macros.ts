@@ -177,7 +177,7 @@ class MacroManager {
 		const ast = AstBuilder.buildAst(s);
 		const resoluble = new ResolubleArray(
 			ast.map((el) => this.evalAstEl(el)),
-		).flatten();
+		);
 
 		for (let i = 0; i < 10; i++) {
 			const p = resoluble.poll();
@@ -194,7 +194,7 @@ class MacroManager {
 
 	public toResoluble(s: string): Resoluble {
 		const ast = AstBuilder.buildAst(s);
-		return new ResolubleArray(ast.map(el => this.evalAstEl(el))).flatten();
+		return new ResolubleArray(ast.map(el => this.evalAstEl(el)));
 	}
 
 	public runOnMessageArray(ms: Message[]): Message[] {
