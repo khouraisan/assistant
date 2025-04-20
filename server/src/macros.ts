@@ -36,18 +36,20 @@ export function parseMacros(input: string): string {
  * passed into it for global vars.
  */
 export class MacroContext {
-	private date: Date;
-	private constants: Map<string, string>;
-	private localVars: Map<string, Resoluble>;
+	private readonly date: Date;
+	private readonly locale: Intl.Locale;
+	private readonly constants: Map<string, string>;
+	private readonly localVars: Map<string, Resoluble>;
 
 	constructor() {
 		this.date = new Date();
+		this.locale = new Intl.Locale("en-US");
 		this.constants = new Map();
 		this.localVars = new Map();
 	}
 
 	private getDate() {
-		return this.date.toLocaleDateString("en-US", {
+		return this.date.toLocaleDateString(this.locale, {
 			year: "numeric",
 			month: "long",
 			day: "numeric",
@@ -55,13 +57,13 @@ export class MacroContext {
 	}
 
 	private getWeekday() {
-		return this.date.toLocaleDateString("en-US", {
+		return this.date.toLocaleDateString(this.locale, {
 			weekday: "long",
 		});
 	}
 
 	private getTime12() {
-		return this.date.toLocaleTimeString("en-US", {
+		return this.date.toLocaleTimeString(this.locale, {
 			hour: "numeric",
 			minute: "2-digit",
 			hour12: true,
@@ -69,7 +71,7 @@ export class MacroContext {
 	}
 
 	private getTime24() {
-		return this.date.toLocaleTimeString("en-US", {
+		return this.date.toLocaleTimeString(this.locale, {
 			hour: "numeric",
 			minute: "2-digit",
 			hour12: false,
@@ -143,7 +145,7 @@ export class MacroContext {
 				}
 
 				return new ResolubleArray([
-					new ResolubleText("{{"),
+					new ResolubleText("{{" + macroName + ":"),
 					...args,
 					new ResolubleText("}}"),
 				]);
