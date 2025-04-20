@@ -281,11 +281,9 @@ export class ResolubleGetLocalVar implements Resoluble {
 		return this.context.getVar(this.varName.resolve()).resolve();
 	}
 
+	//Ensure vars are always resolved as late as possible, to make
+	//sure they all have the same value.
 	public flatten(): Resoluble {
-		if (this.poll()) {
-			return new ResolubleText(this.resolve());
-		}
-
 		return this;
 	}
 }
