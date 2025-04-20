@@ -8,6 +8,13 @@ import {
 	ResolubleText,
 } from "./macros-resolubles.ts";
 
+/**
+ * Current main exported function for compatibility with
+ * khouraisan's previous code (also to make the PR easier to read
+ * and more focused)
+ *
+ * Should be replaced later (I don't wanna do the replacing) (trivial, though)
+ */
 export function parseMacros(input: string): string {
 	console.debug("Invoking parseMacros with arg:", input);
 
@@ -19,6 +26,15 @@ export function parseMacros(input: string): string {
 	return output;
 }
 
+/**
+ * Context object for serial macro parsing and execution.
+ *
+ * May be passed around into Resolubles if they rely on the
+ * context to resolve.
+ *
+ * Probably should have some sort of GlobalContext thingy
+ * passed into it for global vars.
+ */
 export class MacroContext {
 	private date: Date;
 	private constants: Map<string, string>;
@@ -75,6 +91,14 @@ export class MacroContext {
 		);
 	}
 
+	/**
+	 * Evaluates a macro once its name has been resolved.
+	 *
+	 * ASSUMES macros CAN be resolved with just the name and its
+	 * args as Resolubles. See the getvar and setvar Resoluble
+	 * impls for examples on how to add in new stateful
+	 * macros.
+	 */
 	public evalMacro(macroName: string, args: Resoluble[]): Resoluble {
 		switch (macroName) {
 			case "time": {
@@ -128,6 +152,10 @@ export class MacroContext {
 	}
 }
 
+/**
+ * MacroManager object meant to wrap around a context and expose a simpler API
+ * for running macros.
+ */
 class MacroManager {
 	private readonly context: MacroContext;
 
@@ -158,4 +186,34 @@ class MacroManager {
 
 		return resoluble.resolve();
 	}
+
+	/*
+	// final API should be like
+
+	public toResoluble(s: string): Resoluble {
+		const ast = AstBuilder.buildAst(s);
+		return new ResolubleArray(ast.map(el => this.evalAstEl(el))).flatten();
+	}
+
+	public runOnMessageArray(ms: Message[]): Message[] {
+		const rs = ms.map(m => {
+		  m: m,
+		  resoluble: this.toResoluble(m.content),
+		});
+
+		for (let i = 0; i < 10; i++) {
+			if (!rs.map(r => r.resoluble.poll()).some(p => !p)) {
+				break;
+			}
+		}
+
+		return rs.map(r => {
+			const m = r.m;
+			m.content = r.resoluble.resolve();
+			return m;
+		});
+	}
+
+	// or something similar to poll/resolve all messages together with the same ctx
+	 */
 }

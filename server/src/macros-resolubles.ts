@@ -1,17 +1,32 @@
 import type { AstElMacro } from "./macros-ast.ts";
 import type { MacroContext } from "./macros.ts";
 
+/**
+ * A Resoluble is anything that can eventually resolve into a string.
+ * The obvious example is something like {{varName}}. The variable may not
+ * yet exist, but it might eventually, so it's a Resoluble.
+ */
 export interface Resoluble {
-	//indicates whether the macro has already been resolved
+	/**
+	 * Indicates whether the Resoluble has already been resolved.
+	 * MAY do work on resolving the resoluble, so SHOULD be called N times.
+	 */
 	poll(): boolean;
 
-	//resolves the macro into a string, undefined if it fails to resolve
+	/**
+	 * Resolves the Resoluble, coerces it into a string if it hasn't been resolved yet.
+	 */
 	resolve(): string;
 
-	//flattens the current resoluble into a simpler resoluble
+	/**
+	 * Flattens the Resoluble into a simpler Resoluble.
+	 */
 	flatten(): Resoluble;
 }
 
+/**
+ * Trivial Resoluble, just wraps a string and resolves to it.
+ */
 export class ResolubleText implements Resoluble {
 	private readonly s: string;
 
@@ -32,6 +47,11 @@ export class ResolubleText implements Resoluble {
 	}
 }
 
+/**
+ * ResolubleArray wraps an array of resolubles to expose a common
+ * polling method and a common resolve method (concatenates every
+ * individual resolve output).
+ */
 export class ResolubleArray implements Resoluble {
 	private readonly rs: Resoluble[];
 
@@ -50,6 +70,8 @@ export class ResolubleArray implements Resoluble {
 	}
 
 	public flatten(): ResolubleArray {
+		//resolve and concatenate what we can resolve,
+		//flatten what we can't
 		const ret: Resoluble[] = [];
 		let cur: string[] = [];
 
@@ -71,6 +93,16 @@ export class ResolubleArray implements Resoluble {
 	}
 }
 
+/**
+ * A Resoluble wrapper around a macro.
+ *
+ * The macro may or may not have already been executed and unwrapped
+ * into a resoluble, hence "resultResoluble" being nullable.
+ *
+ * If it has been unwrapped, this object just polls and resolves the
+ * resultResoluble. Otherwise, it tries to evaluate the macro until it can
+ * unwrap it.
+ */
 export class ResolubleMacro implements Resoluble {
 	private readonly context: MacroContext;
 
@@ -78,10 +110,11 @@ export class ResolubleMacro implements Resoluble {
 	private argsResolubles: Resoluble[];
 	private resultResoluble: Resoluble | undefined;
 
-	public static fromAstEl(
-		el: AstElMacro,
-		context: MacroContext,
-	): ResolubleMacro {
+	/**
+	 * Creates a Resoluble from an AstEl. Intended public way
+	 * to create ResolubleMacros.
+	 */
+	public static fromAstEl(el: AstElMacro, context: MacroContext): Resoluble {
 		const args = [];
 
 		let cur: Resoluble[] = [];
@@ -105,6 +138,10 @@ export class ResolubleMacro implements Resoluble {
 
 		if (cur.length > 0) {
 			args.push(new ResolubleArray(cur));
+		}
+
+		if (args.length === 0) {
+			return new ResolubleText("");
 		}
 
 		return new ResolubleMacro(args[0], args.slice(1), context);
@@ -151,11 +188,20 @@ export class ResolubleMacro implements Resoluble {
 	}
 }
 
+/**
+ * Resoluble around a parsed {{setvar}} macro.
+ *
+ * Resolves once the variable name has been found. May set the variable name
+ * to an impossible to resolve resoluble value, if it's what was supplied.
+ *
+ * That's not a bug, that's just...yeah.
+ */
 export class ResolubleSetLocalVar implements Resoluble {
 	private readonly varName: Resoluble;
 	private readonly varValue: Resoluble;
 	private readonly context: MacroContext;
 
+	//avoid setting the var multiple times, just in case
 	private resolvedOnce: boolean;
 
 	constructor(varName: Resoluble, varValue: Resoluble, context: MacroContext) {
@@ -199,6 +245,12 @@ export class ResolubleSetLocalVar implements Resoluble {
 	}
 }
 
+/**
+ * Resoluble around a parsed {{getvar}} macro.
+ *
+ * Resolves into the variable once it exists. The value it resolves to
+ * may not exist.
+ */
 export class ResolubleGetLocalVar implements Resoluble {
 	private readonly varName: Resoluble;
 	private readonly context: MacroContext;

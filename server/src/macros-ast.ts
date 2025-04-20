@@ -1,13 +1,24 @@
+/**
+ * Plaintext segment in the text.
+ */
 export type AstElPlaintext = {
 	type: "plaintext";
 	content: string;
 };
 
+/**
+ * Macro in the text. May contain multiple or no AstEls in its content.
+ */
 export type AstElMacro = {
 	type: "macro";
 	content: Array<AstEl>;
 };
 
+/**
+ * We use : as the only acceptable separator because the alternative is
+ * confusing. Changing the separator per macro is weird.
+ * ST is weird.
+ */
 type AstElSep = {
 	type: "sep";
 	content: ":";
@@ -15,13 +26,21 @@ type AstElSep = {
 
 export type AstEl = AstElPlaintext | AstElMacro | AstElSep;
 
+/**
+ * Single-Use AST builder. Not intended for reuse or
+ * storage.
+ */
 export class AstBuilder {
 	public static buildAst(s: string) {
 		const astBuilder = new AstBuilder(s);
 		return astBuilder.buildAstRecursively();
 	}
 
+	// position the parser is currently at
+	// STAYS the same on recursive calls (intentional)
 	private p: number;
+	// string we're parsing split into codepoints
+	// muh funny js utf-16 stuff
 	private readonly s: string[];
 
 	private constructor(s: string) {
