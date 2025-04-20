@@ -120,10 +120,7 @@ export class ResolubleMacro implements Resoluble {
 		let cur: Resoluble[] = [];
 		for (const e of el.content) {
 			if (e.type === "sep") {
-				if (cur.length > 0) {
-					args.push(new ResolubleArray(cur));
-				}
-
+				args.push(new ResolubleArray(cur));
 				cur = [];
 				continue;
 			}
