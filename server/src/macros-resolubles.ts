@@ -49,10 +49,6 @@ export class ResolubleArray implements Resoluble {
 		return this.rs.map((r) => r.resolve()).join("");
 	}
 
-	public resolveToArray(): string[] {
-		return this.rs.map((r) => r.resolve());
-	}
-
 	public flatten(): ResolubleArray {
 		const ret: Resoluble[] = [];
 		let cur: string[] = [];
@@ -78,7 +74,8 @@ export class ResolubleArray implements Resoluble {
 export class ResolubleMacro implements Resoluble {
 	private readonly context: MacroContext;
 
-	private argsResoluble: ResolubleArray;
+	private macroName: Resoluble;
+	private argsResolubles: Resoluble[];
 	private resultResoluble: Resoluble | undefined;
 
 	public static fromAstEl(
@@ -110,11 +107,12 @@ export class ResolubleMacro implements Resoluble {
 			args.push(new ResolubleArray(cur));
 		}
 
-		return new ResolubleMacro(new ResolubleArray(args), context);
+		return new ResolubleMacro(args[0], args.slice(1), context);
 	}
 
-	constructor(args: ResolubleArray, context: MacroContext) {
-		this.argsResoluble = args;
+	constructor(macroName: Resoluble, args: Resoluble[], context: MacroContext) {
+		this.macroName = macroName;
+		this.argsResolubles = args;
 		this.context = context;
 	}
 
@@ -123,9 +121,11 @@ export class ResolubleMacro implements Resoluble {
 			return this.resultResoluble.poll();
 		}
 
-		if (this.argsResoluble.poll()) {
-			const args = this.argsResoluble.resolveToArray();
-			this.resultResoluble = this.context.evalMacro(args);
+		if (this.macroName.poll()) {
+			this.resultResoluble = this.context.evalMacro(
+				this.macroName.resolve(),
+				this.argsResolubles,
+			);
 			return this.resultResoluble.poll();
 		}
 
@@ -143,28 +143,93 @@ export class ResolubleMacro implements Resoluble {
 			return this;
 		}
 
-		return new ResolubleMacro(this.argsResoluble.flatten(), this.context);
+		return new ResolubleMacro(
+			this.macroName.flatten(),
+			this.argsResolubles.map((r) => r.flatten()),
+			this.context,
+		);
 	}
 }
 
-export class ResolubleLocalVar implements Resoluble {
-	private readonly varName: string;
+export class ResolubleSetLocalVar implements Resoluble {
+	private readonly varName: Resoluble;
+	private readonly varValue: Resoluble;
 	private readonly context: MacroContext;
 
-	constructor(varName: string, context: MacroContext) {
+	private resolvedOnce: boolean;
+
+	constructor(varName: Resoluble, varValue: Resoluble, context: MacroContext) {
+		this.varName = varName;
+		this.varValue = varValue;
+		this.context = context;
+
+		this.resolvedOnce = false;
+	}
+
+	public poll() {
+		if (this.resolvedOnce) {
+			return true;
+		}
+
+		if (!this.varName.poll()) {
+			return false;
+		}
+
+		this.context.setVar(this.varName.resolve(), this.varValue);
+		this.resolvedOnce = true;
+		return true;
+	}
+
+	public resolve(): string {
+		return this.resolvedOnce
+			? ""
+			: "[FAILED TO RESOLVE SETVAR:" +
+					this.varName.resolve() +
+					":" +
+					this.varValue.resolve() +
+					"]";
+	}
+
+	public flatten(): Resoluble {
+		if (this.poll()) {
+			return new ResolubleText("");
+		}
+
+		return this;
+	}
+}
+
+export class ResolubleGetLocalVar implements Resoluble {
+	private readonly varName: Resoluble;
+	private readonly context: MacroContext;
+
+	constructor(varName: Resoluble, context: MacroContext) {
 		this.varName = varName;
 		this.context = context;
 	}
 
 	public poll() {
-		return this.context.hasVar(this.varName);
+		if (!this.varName.poll()) {
+			return false;
+		}
+
+		if (!this.context.hasVar(this.varName.resolve())) {
+			return false;
+		}
+
+		return this.context.getVar(this.varName.resolve()).poll();
 	}
 
 	public resolve(): string {
-		return (
-			this.context.getVar(this.varName) ||
-			"[UNRESOLVED VAR " + this.varName + "]"
-		);
+		if (!this.varName.poll()) {
+			return "[UNRESOLVED VARNAME]";
+		}
+
+		if (!this.context.hasVar(this.varName.resolve())) {
+			return "[UNRESOLVED VAR " + this.varName.resolve() + "]";
+		}
+
+		return this.context.getVar(this.varName.resolve()).resolve();
 	}
 
 	public flatten(): Resoluble {

@@ -2,8 +2,9 @@ import { AstBuilder, type AstEl } from "./macros-ast.ts";
 import {
 	type Resoluble,
 	ResolubleArray,
-	ResolubleLocalVar,
+	ResolubleGetLocalVar,
 	ResolubleMacro,
+	ResolubleSetLocalVar,
 	ResolubleText,
 } from "./macros-resolubles.ts";
 
@@ -21,7 +22,7 @@ export function parseMacros(input: string): string {
 export class MacroContext {
 	private date: Date;
 	private constants: Map<string, string>;
-	private localVars: Map<string, string>;
+	private localVars: Map<string, Resoluble>;
 
 	constructor() {
 		this.date = new Date();
@@ -63,16 +64,19 @@ export class MacroContext {
 		return this.localVars.has(k);
 	}
 
-	public setVar(k: string, v: string) {
+	public setVar(k: string, v: Resoluble) {
 		this.localVars.set(k, v);
 	}
 
-	public getVar(k: string): string | undefined {
-		return this.localVars.get(k);
+	public getVar(k: string): Resoluble {
+		return (
+			this.localVars.get(k) ||
+			new ResolubleText("[FAILED TO RESOLVE LOCALVAR " + k + "]")
+		);
 	}
 
-	public evalMacro(args: string[]): Resoluble {
-		switch (args[0].trim()) {
+	public evalMacro(macroName: string, args: Resoluble[]): Resoluble {
+		switch (macroName) {
 			case "time": {
 				return new ResolubleText(this.getTime12());
 			}
@@ -89,36 +93,36 @@ export class MacroContext {
 				return new ResolubleText(this.getWeekday());
 			}
 			case "random": {
-				return new ResolubleText(
-					args[Math.ceil(Math.random() * (args.length - 1))],
-				);
+				return args[Math.floor(Math.random() * args.length)];
 			}
 			case "setvar": {
-				if (args.length < 3) {
-					return new ResolubleText("{{setvar failed: insufficient args}}");
+				if (args.length < 2) {
+					return new ResolubleText(
+						"[FAILED TO RESOLVE SETVAR: INSUFFICIENT ARGUMENTS]",
+					);
 				}
 
-				this.setVar(args[1], args[2]);
-				return new ResolubleText("");
+				return new ResolubleSetLocalVar(args[0], args[1], this);
 			}
 			case "getvar": {
-				if (args.length < 2) {
-					return new ResolubleText("{{getvar failed: insufficient args}}");
+				if (args.length < 1) {
+					return new ResolubleText(
+						"[FAILED TO RESOLVE GETVAR: INSUFFICIENT ARGUMENTS]",
+					);
 				}
 
-				if (this.hasVar(args[1])) {
-					// typescript doesn't know the getVar tautologically succeeds
-					return new ResolubleText(this.getVar(args[1]) || "");
-				}
-
-				return new ResolubleLocalVar(args[1], this);
+				return new ResolubleGetLocalVar(args[0], this);
 			}
 			default: {
-				if (args[0].startsWith("\\")) {
+				if (macroName.startsWith("\\")) {
 					return new ResolubleText("");
 				}
 
-				return new ResolubleText("{{" + args.join(":") + "}}");
+				return new ResolubleArray([
+					new ResolubleText("{{"),
+					...args,
+					new ResolubleText("}}"),
+				]);
 			}
 		}
 	}
@@ -141,7 +145,9 @@ class MacroManager {
 
 	public run(s: string): string {
 		const ast = AstBuilder.buildAst(s);
-		const resoluble = (new ResolubleArray(ast.map((el) => this.evalAstEl(el)))).flatten();
+		const resoluble = new ResolubleArray(
+			ast.map((el) => this.evalAstEl(el)),
+		).flatten();
 
 		for (let i = 0; i < 10; i++) {
 			const p = resoluble.poll();
