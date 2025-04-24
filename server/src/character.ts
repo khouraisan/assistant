@@ -78,13 +78,7 @@ export class TavernCharacter {
 		}
 
 		// Validate TavernCharacterData fields
-		const requiredDataFields: (keyof TavernCharacterData)[] = [
-			"nickname",
-			"description",
-			"notes",
-			"author",
-			"version",
-		];
+		const requiredDataFields: (keyof TavernCharacterData)[] = ["nickname", "description", "notes", "author", "version"];
 
 		for (const field of requiredDataFields) {
 			if (field in json.data === false || typeof json.data[field] !== "string") {

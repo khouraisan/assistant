@@ -62,20 +62,14 @@ import * as server from "../../server.ts";
 import {useWidgetContext} from "../Widget.tsx";
 import {ChatPromptSettings} from "./ChatPromptSettings.tsx";
 import {useChatTitle, useMessageScroll, useOverflowDetection} from "../hooks/chatWidgetHooks.ts";
-import {
-	ChatList,
-	EmptyChatStub,
-	Input,
-	Message,
-	Messages,
-	PlaceholderMessage,
-	PlaceholderMessages,
-} from "./ChatShared.tsx";
+import {ChatList, EmptyChatStub, Input, Message, Messages, PlaceholderMessage, PlaceholderMessages} from "./ChatShared.tsx";
 import {CharacterChatSettings} from "./CharacterChatSettings.tsx";
 
 // #endregion
 
 export default function CharacterChatWidget() {
+	return null; // todo
+
 	const widgetCtx = useWidgetContext();
 
 	let messagesRef: HTMLDivElement | undefined = undefined;
@@ -186,13 +180,13 @@ export default function CharacterChatWidget() {
 						onLastMessageChange={() => {}}
 						draggingDragbar={widgetCtx.draggingDragbar()}
 					/>
-					<Input
+					{/* <Input
 						value={input()}
 						setValue={setInput}
 						onSend={onSendClick}
 						isGenerating={isGenerating()}
 						disabled={!isConnected()}
-					/>
+					/> */}
 				</Show>
 			</div>
 			<Portal mount={widgetCtx.drawer()}>
@@ -218,9 +212,7 @@ export default function CharacterChatWidget() {
 					isMessagesOverlow={isMessageOverflow()}
 					maximized={widgetCtx.maximized()}
 					onTop={(fast) => messagesRef!.scrollTo({top: 0, behavior: fast ? undefined : "smooth"})}
-					onBottom={(fast) =>
-						messagesRef!.scrollTo({top: messagesRef!.scrollHeight, behavior: fast ? undefined : "smooth"})
-					}
+					onBottom={(fast) => messagesRef!.scrollTo({top: messagesRef!.scrollHeight, behavior: fast ? undefined : "smooth"})}
 					onInsertAssistantMessage={handleInsertAssistantMessage}
 				/>
 			</Portal>
@@ -238,11 +230,7 @@ function ChatQuickActions(props: {
 }) {
 	return (
 		<>
-			<button
-				title="Add assistant message"
-				onclick={() => props.onInsertAssistantMessage()}
-				disabled={props.chatId === null}
-			>
+			<button title="Add assistant message" onclick={() => props.onInsertAssistantMessage()} disabled={props.chatId === null}>
 				<AiOutlineRobot />
 			</button>
 			<div title="Scroll to top (double click to scroll instantly)" class="quick-action-scroll">
@@ -481,10 +469,7 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 	);
 }
 
-function ColorSelect(props: {
-	value: server.ChatSettings["color"];
-	onSelect: (value: server.ChatSettings["color"]) => void;
-}) {
+function ColorSelect(props: {value: server.ChatSettings["color"]; onSelect: (value: server.ChatSettings["color"]) => void}) {
 	const opts = createOptions(["none", "red", "green", "yellow", "blue", "orange", "purple"]);
 
 	return (
@@ -497,10 +482,7 @@ function ColorSelect(props: {
 	);
 }
 
-function OpenRouterModelSelect(props: {
-	value: server.OpenRouterModelId;
-	onSelect: (model: server.OpenRouterModel) => void;
-}) {
+function OpenRouterModelSelect(props: {value: server.OpenRouterModelId; onSelect: (model: server.OpenRouterModel) => void}) {
 	const [models] = createResource<server.OpenRouterModel[] | null>(
 		async () => (await server.getOpenRouterModels()).toSorted((a, b) => a.name.localeCompare(b.name)),
 		{initialValue: null}

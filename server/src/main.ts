@@ -4,21 +4,24 @@ import WebSocket, {WebSocketServer} from "ws";
 import path from "path";
 import {mkdir} from "node:fs/promises";
 import cors from "cors";
-import {validateCharacterId, validateChatId, validateMessageId} from "./middleware";
+import {validateCharacterId, validateChatId, validateImageId, validateMessageId} from "./middleware";
 import {Glob} from "bun";
 import {Message, type MessageId} from "./message";
 import * as chat from "./chat";
 import * as character from "./character";
 import * as wsCompression from "./wsCompression";
+import * as image from "./image";
 import compression from "compression";
 import type {LLMProvider} from "./provider/provider";
 import {OpenRouterProvider} from "./provider/openrouter";
 import {DebugProvider} from "./provider/debug";
+import {PassThrough} from "stream";
 
 export const DATA_DIR = Bun.env.NODE_ENV === "test" ? "./test-data" : "./data";
 export const CHATS_DIR = path.join(DATA_DIR, "chats");
 export const CHARS_DIR = path.join(DATA_DIR, "characters");
 export const CHAR_AVATAR_DIR = path.join(CHARS_DIR, "avatars");
+export const IMAGES_DIR = path.join(DATA_DIR, "images");
 
 // Ensure data directories exist
 async function ensureDirectoriesExist() {
@@ -26,6 +29,7 @@ async function ensureDirectoriesExist() {
 	await mkdir(CHATS_DIR, {recursive: true});
 	await mkdir(CHARS_DIR, {recursive: true});
 	await mkdir(CHAR_AVATAR_DIR, {recursive: true});
+	await mkdir(IMAGES_DIR, {recursive: true});
 }
 
 export function ensureEnv() {
@@ -171,6 +175,19 @@ async function deleteCharacter(characterId: string): Promise<true | "error"> {
 		console.error("Failed to delete character", error);
 		return "error";
 	}
+}
+
+async function saveImage(id: string, data: Uint8Array): Promise<void> {
+	const filePath = path.join(IMAGES_DIR, `${id}.jpg`);
+	await Bun.write(filePath, data);
+}
+
+export async function getImage(id: string): Promise<Uint8Array | null> {
+	const filePath = path.join(IMAGES_DIR, `${id}.jpg`);
+	if (await Bun.file(filePath).exists()) {
+		return await Bun.file(filePath).bytes();
+	}
+	return null;
 }
 
 // Initialize Express app
@@ -759,13 +776,16 @@ app.put("/chats/:chatId/settings", validateChatId, async (req, res) => {
 	}
 });
 
-function validateMessageBody(message: unknown): message is {role: "user" | "assistant"; text: string} {
+function validateMessageBody(message: unknown): message is {role: "user" | "assistant"; text: string; attachments?: string[]} {
 	return (
 		typeof message === "object" &&
 		message !== null &&
 		typeof (message as any).role === "string" &&
 		((message as any).role === "user" || (message as any).role === "assistant") &&
-		typeof (message as any).text === "string"
+		typeof (message as any).text === "string" &&
+		((message as any).attachments === undefined ||
+			(Array.isArray((message as any).attachments) &&
+				(message as any).attachments.every((a: unknown) => typeof a === "string" && a.startsWith("image_"))))
 	);
 }
 
@@ -805,15 +825,16 @@ app.put("/messages/insert", async (req, res) => {
 
 		insertIndex = Math.min(chat.messages.length, insertIndex);
 
-		chat.messages.splice(
-			insertIndex,
-			0,
-			new Message({
-				role: message.role,
-				text: message.text,
-				model: message.role === "assistant" ? "manual" : undefined,
-			})
-		);
+		const newMessage = new Message({
+			role: message.role,
+			text: message.text,
+			model: message.role === "assistant" ? "manual" : undefined,
+		});
+		if (message.role === "user" && message.attachments) {
+			newMessage.attachments = message.attachments;
+		}
+
+		chat.messages.splice(insertIndex, 0, newMessage);
 
 		await saveChat(chat);
 
@@ -863,6 +884,7 @@ app.put("/messages/set", async (req, res) => {
 
 		chat.messages[insertIndex].text = message.text;
 		chat.messages[insertIndex].role = message.role;
+		chat.messages[insertIndex].attachments = message.attachments;
 
 		await saveChat(chat);
 
@@ -906,6 +928,7 @@ app.put("/messages/set/:id", validateMessageId, async (req, res) => {
 
 		chat.messages[insertIndex].text = message.text;
 		chat.messages[insertIndex].role = message.role;
+		chat.messages[insertIndex].attachments = message.attachments;
 
 		await saveChat(chat);
 
@@ -1249,6 +1272,10 @@ app.get("/openroutermodels", async (req, res) => {
 
 		const models = await response.json();
 
+		res.writeHead(200, {
+			"Cache-Control": "private, max-age=60",
+		});
+
 		res.json(
 			models.data.map(
 				(v: any) =>
@@ -1268,13 +1295,79 @@ app.get("/openroutermodels", async (req, res) => {
 	}
 });
 
+app.get("/image/:id", validateImageId, async (req, res) => {
+	try {
+		const {id} = req.params;
+		const {thumbnail: _thumbnail} = req.query;
+
+		// This route allows no query param
+		const thumbnail = _thumbnail === "true";
+
+		if (typeof id !== "string") {
+			res.status(400).json({error: "Invalid ID"});
+			return;
+		}
+
+		let file = await getImage(id);
+
+		if (file === null) {
+			res.status(404).json({error: "Image not found"});
+			return;
+		}
+
+		if (thumbnail) {
+			file = await image.resizeForThumbnail(file);
+		}
+
+		res.writeHead(200, {
+			"Content-Type": "image/jpeg",
+			"Content-Length": file.byteLength,
+			"Content-Disposition": `inline; filename="${id}.png"`,
+			"Cache-Control": "public, immutable",
+		});
+
+		res.send(Buffer.from(file));
+	} catch (error) {
+		console.error("Failed to fetch image", error);
+		res.status(500).json({error: "Failed to fetch image", detail: error?.toString()});
+	}
+});
+
+app.post("/image", async (req, res) => {
+	try {
+		if (!req.headers["content-type"]?.startsWith("image/")) {
+			res.status(400).json({error: "Content must be an image"});
+			return;
+		}
+
+		const imageId = `image_${Math.random().toString(36).slice(2)}`;
+
+		const chunks = [];
+		for await (const chunk of req) {
+			chunks.push(chunk);
+		}
+		let buffer: Uint8Array = Buffer.concat(chunks);
+
+		try {
+			buffer = await image.resizeForClaude(buffer);
+		} catch (error) {
+			res.status(422).json({error: "Image is not valid", detail: error?.toString()});
+			return;
+		}
+
+		await Bun.sleep(1000);
+
+		await saveImage(imageId, buffer);
+
+		res.send(imageId);
+	} catch (error) {
+		console.error("Failed to upload image:", error);
+		res.status(500).json({error: "Failed to upload image", detail: error?.toString()});
+	}
+});
+
 // Should still resolve with a partial response on abort
-async function streamingResponse(
-	ws: WebSocket,
-	chat: chat.Chat,
-	abort: AbortController,
-	provider: LLMProvider
-): Promise<string> {
+async function streamingResponse(ws: WebSocket, chat: chat.Chat, abort: AbortController, provider: LLMProvider): Promise<string> {
 	console.log("stream generation", {chatId: chat.id});
 
 	// openrouter.openRouterStreaming(chat.toOpenRouterConfig(), abort);

@@ -25,7 +25,3 @@ dist-ssr
 repomix-output.xml
 test.html
 test.ts
-
-# Local docker-compose.yml, potentially with OpenRouter keys registered
-docker-compose.yml
-

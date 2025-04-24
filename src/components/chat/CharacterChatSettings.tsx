@@ -38,8 +38,7 @@ export function CharacterChatSettings(props: {}) {
 	const currentPreset = () => presets.find((s) => s.id === currentPresetId()) ?? null;
 
 	// @ts-expect-error: Not assignable
-	const setCurrentPreset: SetStoreFunction<Preset> = (...args: [any]) =>
-		setPresets((v) => v.id === currentPresetId(), ...args);
+	const setCurrentPreset: SetStoreFunction<Preset> = (...args: [any]) => setPresets((v) => v.id === currentPresetId(), ...args);
 
 	const [pickedCharacters, setPickedCharacters] = createSignal<server.TavernCharacterHead[]>([]);
 
@@ -64,12 +63,7 @@ export function CharacterChatSettings(props: {}) {
 		<div class="character-chat-settings">
 			<PresetPicker presets={presets} setSnippetId={setCurrentPresetId} />
 			<PickedCharacters picked={pickedCharacters()} onUnpick={handleUnpick} />
-			<CharacterPicker
-				characters={characters()}
-				picked={pickedCharacters()}
-				onPick={handlePick}
-				onUnpick={handleUnpick}
-			/>
+			<CharacterPicker characters={characters()} picked={pickedCharacters()} onPick={handlePick} onUnpick={handleUnpick} />
 		</div>
 	);
 }
@@ -132,9 +126,7 @@ function PickedCharacters(props: {picked: server.TavernCharacterHead[]; onUnpick
 		<section class="picked-characters">
 			<h1>Picked characters</h1>
 			<ul ref={listRef!}>
-				<For each={props.picked}>
-					{(info) => <CharacterLi info={info} onClick={() => props.onUnpick(info.id)} />}
-				</For>
+				<For each={props.picked}>{(info) => <CharacterLi info={info} onClick={() => props.onUnpick(info.id)} />}</For>
 			</ul>
 		</section>
 	);

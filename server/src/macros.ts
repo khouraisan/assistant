@@ -23,7 +23,6 @@ function weekday() {
 	});
 }
 
-
 function time12() {
 	return new Date().toLocaleTimeString("en-US", {
 		hour: "numeric",

@@ -5,6 +5,8 @@ export class Message {
 	public role: "user" | "assistant";
 	public text: string;
 	public date: Date;
+	// attachments are only for user messages
+	public attachments?: Array<string>; // image ids
 	// model is undefined if role is user
 	public model?: string;
 
@@ -21,6 +23,9 @@ export class Message {
 		}
 		if (role === "user" && model !== undefined) {
 			throw new Error("Model should not be defined for user messages");
+		}
+		if (role === "user") {
+			this.attachments = [];
 		}
 	}
 
@@ -40,6 +45,7 @@ export class Message {
 			model: data.model,
 		});
 		(v.id as MessageId) = data.id;
+		v.attachments = v.role === "user" ? data.attachments : undefined;
 		return v;
 	}
 }

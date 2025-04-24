@@ -35,9 +35,7 @@ export function NeatInputarea(props: {
 				return v.split(/(\*\*.*?\*\*)/).map((m) => {
 					return [
 						m,
-						m.startsWith("**") && m.endsWith("**") && !m.startsWith("***")
-							? [...tags, "bold" as const]
-							: tags,
+						m.startsWith("**") && m.endsWith("**") && !m.startsWith("***") ? [...tags, "bold" as const] : tags,
 					] satisfies NeatInputAreaToken;
 				});
 			})
@@ -49,9 +47,7 @@ export function NeatInputarea(props: {
 				return v.split(/(\*[^\*].*?[^\*]\*)/).map((m) => {
 					return [
 						m,
-						m.startsWith("*") && m.endsWith("*") && !m.startsWith("**")
-							? [...tags, "italic" as const]
-							: tags,
+						m.startsWith("*") && m.endsWith("*") && !m.startsWith("**") ? [...tags, "italic" as const] : tags,
 					] satisfies NeatInputAreaToken;
 				});
 			})
@@ -106,9 +102,7 @@ export function NeatInputarea(props: {
 					}}
 				></textarea>
 				<div class="neat-input-mask" data-placeholder={props.placeholder}>
-					<For each={tokens()}>
-						{(part, i) => <TextPart token={part} isLast={tokens().length - 1 === i()} />}
-					</For>
+					<For each={tokens()}>{(part, i) => <TextPart token={part} isLast={tokens().length - 1 === i()} />}</For>
 				</div>
 			</div>
 		</div>

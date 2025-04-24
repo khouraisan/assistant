@@ -1,6 +1,8 @@
 import {Message, type MessageId} from "./message";
 import * as openrouter from "./provider/openrouter";
 import * as macros from "./macros";
+import {asDataUrl} from "./image";
+import {getImage} from "./main";
 
 export type ChatId = string;
 
@@ -77,6 +79,8 @@ export class Chat {
 	}
 
 	public head(): ChatHead {
+		const characters = this.messages.reduce((acc, v) => acc + v.text.length, 0);
+		const images = this.messages.reduce((acc, v) => acc + (v.attachments?.length ?? 0), 0);
 		return {
 			id: this.id,
 			name: this.name,
@@ -85,7 +89,7 @@ export class Chat {
 			color: this.settings.color,
 			temporary: this.temporary,
 			// Approximate token count based on average token length of 3.51 characters
-			tokenCount: Math.floor(this.messages.reduce((acc, v) => acc + v.text.length, 0) / 3.51),
+			tokenCount: Math.floor(characters / 3.51 + images * 512),
 		};
 	}
 
@@ -153,14 +157,55 @@ export class Chat {
 			messages: json.messages.map((m: any) => Message.fromJSON(m)),
 			temporary: json.temporary,
 			settings: json.settings,
-			canAutogenerateTitle: json.canAutogenerateTitle
+			canAutogenerateTitle: json.canAutogenerateTitle,
 		});
 	}
 
-	toOpenAiMessages(options: {system?: string}): openrouter.OpenRouterMessage[] {
+	async toOpenAiMessages(options: {system?: string}): Promise<openrouter.OpenRouterMessage[]> {
+		const attachments = new Map<string, string[]>();
+
+		const promises: Promise<void>[] = [];
+		for (const v of this.messages) {
+			if (v.attachments) {
+				// asyyyyyyyyyyyyyyync!!!
+				promises.push(
+					(async () => {
+						const urls = await Promise.all(
+							v.attachments!.map(async (a) => {
+								const data = await getImage(a);
+								if (data === null) return null;
+								return asDataUrl(data);
+							})
+						);
+						attachments.set(
+							v.id,
+							urls.filter((v) => v !== null)
+						);
+					})()
+				);
+			}
+		}
+
+		await Promise.all(promises);
+
 		const messages: openrouter.OpenRouterMessage[] = this.messages.map((v) => ({
 			role: v.role,
-			content: v.text,
+			content: [
+				{
+					type: "text",
+					text: v.text,
+				},
+				// ugly uugh!
+				...(attachments.get(v.id)?.map(
+					(v) =>
+						({
+							type: "image_url",
+							image_url: {
+								url: v,
+							},
+						}) as const
+				) ?? []),
+			],
 		}));
 
 		if (options.system) {
@@ -170,9 +215,11 @@ export class Chat {
 			});
 		}
 
+		// Parse macros in messages
 		for (const v of messages) {
-			if (typeof v.content === "object") {
+			if (Array.isArray(v.content)) {
 				for (const vv of v.content) {
+					if (vv.type !== "text") continue;
 					vv.text = macros.parseMacros(vv.text);
 				}
 			} else {
@@ -183,8 +230,8 @@ export class Chat {
 		return messages;
 	}
 
-	toOpenRouterConfig(): openrouter.OpenRouterConfig {
-		const messages = this.toOpenAiMessages({system: this.settings.systemPrompt});
+	async toOpenRouterConfig(): Promise<openrouter.OpenRouterConfig> {
+		const messages = await this.toOpenAiMessages({system: this.settings.systemPrompt});
 
 		return {
 			model: this.settings.model,
@@ -196,7 +243,7 @@ export class Chat {
 
 	async autogenerateTitle(): Promise<string | null> {
 		const token = Bun.env.AKASH_TOKEN;
-		if(!token) {
+		if (!token) {
 			return null;
 		}
 

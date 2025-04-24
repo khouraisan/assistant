@@ -19,11 +19,13 @@
 		"solid-js": "^1.9.4",
 		"solid-markdown": "^2.0.14",
 		"solid-notifications": "^1.1.2",
-		"unist-util-visit": "^5.0.0",
-		"sortablejs": "^1.15.6"
+		"solid-spinner": "^0.2.0",
+		"sortablejs": "^1.15.6",
+		"unist-util-visit": "^5.0.0"
 	},
 	"devDependencies": {
 		"@types/sortablejs": "^1.15.8",
+		"prettier": "^3.5.3",
 		"typescript": "~5.7.2",
 		"vite": "^6.1.0",
 		"vite-plugin-solid": "^2.11.0"

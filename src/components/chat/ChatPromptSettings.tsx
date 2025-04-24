@@ -1,16 +1,6 @@
 import {createStore, SetStoreFunction} from "solid-js/store";
 import "./ChatPromptSettings.css";
-import {
-	createComputed,
-	createEffect,
-	createRenderEffect,
-	createSignal,
-	For,
-	on,
-	onCleanup,
-	onMount,
-	Show,
-} from "solid-js";
+import {createComputed, createEffect, createRenderEffect, createSignal, For, on, onCleanup, onMount, Show} from "solid-js";
 import {createOptions, Select} from "@thisbeyond/solid-select";
 import Sortable from "sortablejs";
 import {trackStore} from "@solid-primitives/deep";
@@ -59,8 +49,7 @@ export function ChatPromptSettings() {
 
 	const currentSnippet = () => snippets.find((s) => s.id === currentSnippetId()) ?? null;
 	// @ts-expect-error: Not assignable
-	const setCurrentSnippet: SetStoreFunction<Snippet> = (...args: [any]) =>
-		setSnippets((v) => v.id === currentSnippetId(), ...args);
+	const setCurrentSnippet: SetStoreFunction<Snippet> = (...args: [any]) => setSnippets((v) => v.id === currentSnippetId(), ...args);
 
 	const [prompt, setPrompt] = createSignal<SnippetId[]>([]);
 

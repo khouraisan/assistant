@@ -42,3 +42,16 @@ export function validateCharacterId(req: any, res: any, next: any) {
 
 	next();
 }
+
+export function validateImageId(req: any, res: any, next: any) {
+	const fail = () => res.status(400).json({error: "Malformed image id"});
+
+	if (!req.params.id) {
+		return fail();
+	}
+	if (!req.params.id.startsWith("image_")) {
+		return fail();
+	}
+
+	next();
+}

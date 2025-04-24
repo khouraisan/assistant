@@ -11,9 +11,10 @@ type MarkdownString = string;
 const tipDocuments = (() => {
 	const v = import.meta.glob("/src/assets/tips/*.md", {eager: true, query: "?raw"});
 
-	return Object.fromEntries(
-		Object.entries(v).map(([k, v]: any[]) => [k.split("/").at(-1)!.split(".")[0], v.default])
-	) as Record<string, MarkdownString>;
+	return Object.fromEntries(Object.entries(v).map(([k, v]: any[]) => [k.split("/").at(-1)!.split(".")[0], v.default])) as Record<
+		string,
+		MarkdownString
+	>;
 })();
 
 export function F1Tips(props: {active: boolean}) {
@@ -127,12 +128,7 @@ function DialogHeader(props: {title: string; onClose: () => void}) {
 			<h2>
 				<span>{props.title} tips</span>
 			</h2>
-			<Button
-				title="Close dialog (hold)"
-				color="secondary"
-				class="close-button"
-				onClick={() => props.onClose?.()}
-			>
+			<Button title="Close dialog (hold)" color="secondary" class="close-button" onClick={() => props.onClose?.()}>
 				<FaSolidXmark />
 			</Button>
 		</header>

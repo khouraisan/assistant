@@ -6,7 +6,7 @@ type DebugProviderConfig = {
 
 /**
  * Creates a debug provider for testing purposes.
- * 
+ *
  * @param options - Configuration options for the debug provider
  * @returns An LLMProvider object with a streamResponse method that returns a debug stream
  */

@@ -204,13 +204,7 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 					>
 						<FaSolidRotateLeft size={"1.66rem"} />
 					</Button>
-					<Button
-						timed={500}
-						color="secondary"
-						onClick={() => {}}
-						class="save-character"
-						title="Save character"
-					>
+					<Button timed={500} color="secondary" onClick={() => {}} class="save-character" title="Save character">
 						<FaSolidFloppyDisk size={"1.66rem"} />
 					</Button>
 				</header>
@@ -236,11 +230,7 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 						</div>
 						<input class="author-editor" placeholder="Author" value={unsavedCharacter.data.author} />
 						<input class="version-editor" placeholder="0.0.0" value={unsavedCharacter.data.version} />
-						<textarea
-							class="notes-editor"
-							placeholder="Author's notes"
-							value={unsavedCharacter.data.notes}
-						/>
+						<textarea class="notes-editor" placeholder="Author's notes" value={unsavedCharacter.data.notes} />
 					</section>
 				</section>
 				<NeatInputarea

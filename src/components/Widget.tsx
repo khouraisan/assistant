@@ -19,13 +19,14 @@ import {FiMaximize2, FiMinimize2} from "solid-icons/fi";
 import Button from "./Button";
 import {BsThreeDotsVertical} from "solid-icons/bs";
 import {getCaretOffset, isSelectingSelf} from "../util";
+import { SsWidget } from "./ss/SsWidget";
 
 export type WidgetProps = {
 	isLastWidget: boolean;
 	isNoScrollActive: boolean;
 	isAlignCenterActive: boolean;
 	index: number;
-	type: "chat" | "character-chat" | "sort" | "character-manager" | "empty";
+	type: "chat" | "character-chat" | "sort" | "character-manager" | "empty" | "ss";
 	onClose?: () => void;
 };
 
@@ -106,8 +107,7 @@ export default function Widget(props: WidgetProps) {
 
 	function getRemainingWidth(parentElement: HTMLElement) {
 		const computed = getComputedStyle(parentElement);
-		const parentWidth =
-			parentElement.clientWidth - parseFloat(computed.paddingLeft) - parseFloat(computed.paddingRight);
+		const parentWidth = parentElement.clientWidth - parseFloat(computed.paddingLeft) - parseFloat(computed.paddingRight);
 
 		const gap = parseFloat(computed.gap);
 		// :3
@@ -243,12 +243,7 @@ export default function Widget(props: WidgetProps) {
 					</Button>
 				</Show>
 			</header>
-			<WidgetDrawer
-				show={showDrawer()}
-				onHide={() => setShowDrawer(false)}
-				ref={drawerRef!}
-				drawerSize={drawerSize()}
-			/>
+			<WidgetDrawer show={showDrawer()} onHide={() => setShowDrawer(false)} ref={drawerRef!} drawerSize={drawerSize()} />
 			<div class="widget-content">
 				<WidgetContext.Provider value={widgetContextValue}>
 					<Switch>
@@ -266,6 +261,9 @@ export default function Widget(props: WidgetProps) {
 						</Match>
 						<Match when={props.type === "empty"}>
 							<EmptyWidget />
+						</Match>
+						<Match when={props.type === "ss"}>
+							<SsWidget />
 						</Match>
 					</Switch>
 				</WidgetContext.Provider>
@@ -294,12 +292,7 @@ function WidgetQuickActions(props: {ref: HTMLDivElement}) {
 	);
 }
 
-function WidgetDrawer(props: {
-	show: boolean;
-	onHide: () => void;
-	ref: HTMLDivElement;
-	drawerSize: "small" | "large" | "max";
-}) {
+function WidgetDrawer(props: {show: boolean; onHide: () => void; ref: HTMLDivElement; drawerSize: "small" | "large" | "max"}) {
 	let widgetDrawerRef: HTMLDivElement;
 
 	const [hasAnimatedOnce, setHasAnimatedOnce] = createSignal(false);
@@ -413,5 +406,7 @@ function typeToDefautTitle(type: WidgetProps["type"]) {
 			return "Sort";
 		case "empty":
 			return "Empty";
+		case "ss":
+			return "SS";
 	}
 }

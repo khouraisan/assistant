@@ -46,19 +46,14 @@ export default function Nav(props: {
 				<Button title="Add chat widget" color="accent" onClick={() => props.onAddWidget("chat")}>
 					<BiRegularConversation size={"1.8rem"} />
 				</Button>
-				<Button
-					title="Add character chat widget"
-					color="accent"
-					onClick={() => props.onAddWidget("character-chat")}
-				>
+				<Button title="Add character chat widget" color="accent" onClick={() => props.onAddWidget("character-chat")}>
 					<FaSolidUser size={"1.5rem"} />
 				</Button>
-				<Button
-					title="Add character manager widget"
-					color="accent"
-					onClick={() => props.onAddWidget("character-manager")}
-				>
+				<Button title="Add character manager widget" color="accent" onClick={() => props.onAddWidget("character-manager")}>
 					<FaSolidAddressCard size={"1.5rem"} />
+				</Button>
+				<Button title="Add SS widget" color="accent" onClick={() => props.onAddWidget("ss")}>
+					SS
 				</Button>
 			</div>
 		</nav>

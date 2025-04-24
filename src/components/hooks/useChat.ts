@@ -3,24 +3,25 @@ import {useWs} from "../../wsContext";
 import * as server from "../../server";
 import type {GenerateMessage, NotifyMessage} from "./useWs";
 
+export type Attachment = {
+	id: string;
+	status: "uploading" | "uploaded";
+};
+
 export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void}) {
 	const [input, setInput] = createSignal("");
+	const [attachments, setAttachments] = createSignal<Attachment[]>([]);
 	const [chatId, setChatId] = createSignal<server.ChatId | null>(null);
 	const [isGenerating, setIsGenerating] = createSignal(false);
-	const [streamingMessage, setStreamingMessage] = createSignal<{id: string; content: string; model: string} | null>(
-		null
-	);
+	const [streamingMessage, setStreamingMessage] = createSignal<{id: string; content: string; model: string} | null>(null);
 	const [messages, {refetch: refetchMessages, mutate: mutateMessages}] = createResource(chatId, async (id) => {
 		// todo: null logic
 		return (await server.loadMessages(id)) ?? [];
 	});
 
-	const [chats, {refetch: refetchChatHeads, mutate: mutateChats}] = createResource<server.ChatHeadRepr[]>(
-		() => server.loadChats(),
-		{
-			initialValue: [],
-		}
-	);
+	const [chats, {refetch: refetchChatHeads, mutate: mutateChats}] = createResource<server.ChatHeadRepr[]>(() => server.loadChats(), {
+		initialValue: [],
+	});
 
 	const {
 		removeMessageCallback,
@@ -57,18 +58,29 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 		const id = chatId();
 		if (!id) return;
 
-		// Save the input in case of error
+		// Save in case of error
 		const currentInput = input();
+		const currentAttachments = attachments();
+		const currentAttachmentIds = currentAttachments.map((v) => v.id);
+
 		const shouldContinue = currentInput === "";
 
 		if (!shouldContinue) {
 			mutateMessages((v) => [
 				...(v ?? []),
-				{id: "", chatId: id, role: "user", text: currentInput, date: new Date()},
+				{
+					id: "",
+					chatId: id,
+					role: "user",
+					text: currentInput,
+					date: new Date(),
+					attachments: currentAttachmentIds,
+				},
 			]);
 		}
 
 		setInput("");
+		setAttachments([]);
 
 		try {
 			// Don't add the message if it's empty and just generate the response
@@ -76,7 +88,7 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 				await server.addMessage(id, {
 					type: "insert",
 					position: "end",
-					message: {role: "user", text: currentInput},
+					message: {role: "user", text: currentInput, attachments: currentAttachmentIds},
 				});
 			}
 
@@ -474,6 +486,8 @@ export function useChat(props: {onRenameMessage: (chatId: server.ChatId) => void
 		onMakePermanent,
 		input,
 		setInput,
+		attachments,
+		setAttachments,
 		chatId,
 		isGenerating,
 		streamingMessage,

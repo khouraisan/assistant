@@ -85,6 +85,8 @@ export default function ChatWidget() {
 		onMakePermanent,
 		input,
 		setInput,
+		attachments,
+		setAttachments,
 		chatId,
 		isGenerating,
 		streamingMessage,
@@ -280,6 +282,8 @@ export default function ChatWidget() {
 					<Input
 						value={input()}
 						setValue={setInput}
+						attachments={attachments()}
+						setAttachments={setAttachments}
 						onSend={onSendClick}
 						isGenerating={isGenerating()}
 						disabled={!isConnected()}
@@ -333,11 +337,7 @@ function ChatQuickActions(props: {
 }) {
 	return (
 		<>
-			<button
-				title="Add assistant message"
-				onclick={() => props.onInsertAssistantMessage()}
-				disabled={props.chatId === null}
-			>
+			<button title="Add assistant message" onclick={() => props.onInsertAssistantMessage()} disabled={props.chatId === null}>
 				<AiOutlineRobot />
 			</button>
 			<div class="quick-action-scroll">
@@ -585,10 +585,7 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 	);
 }
 
-function ColorSelect(props: {
-	value: server.ChatSettings["color"];
-	onSelect: (value: server.ChatSettings["color"]) => void;
-}) {
+function ColorSelect(props: {value: server.ChatSettings["color"]; onSelect: (value: server.ChatSettings["color"]) => void}) {
 	const opts = createOptions(["none", "red", "green", "yellow", "blue", "orange", "purple"]);
 
 	return (

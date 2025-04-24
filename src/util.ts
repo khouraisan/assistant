@@ -128,7 +128,7 @@ export function deepEquals(a: unknown, b: unknown): boolean {
 
 export async function registerHljsLanguages() {
 	const hljs = (await import("highlight.js/lib/core")).default;
-	if(hljs.listLanguages().length > 0) return; // already registered
+	if (hljs.listLanguages().length > 0) return; // already registered
 
 	hljs.registerLanguage("1c", (await import("highlight.js/lib/languages/1c")).default);
 	hljs.registerLanguage("abnf", (await import("highlight.js/lib/languages/abnf")).default);
@@ -217,7 +217,7 @@ export async function registerHljsLanguages() {
 	hljs.registerLanguage("irpf90", (await import("highlight.js/lib/languages/irpf90")).default);
 	hljs.registerLanguage("isbl", (await import("highlight.js/lib/languages/isbl")).default);
 	hljs.registerLanguage("java", (await import("highlight.js/lib/languages/java")).default);
-	hljs.registerLanguage("javascript", (await import("highlight.js/lib/languages/javascript")).default);
+	// hljs.registerLanguage("javascript", (await import("highlight.js/lib/languages/javascript")).default);
 	hljs.registerLanguage("jboss-cli", (await import("highlight.js/lib/languages/jboss-cli")).default);
 	hljs.registerLanguage("json", (await import("highlight.js/lib/languages/json")).default);
 	hljs.registerLanguage("julia", (await import("highlight.js/lib/languages/julia")).default);
@@ -272,7 +272,7 @@ export async function registerHljsLanguages() {
 	hljs.registerLanguage("protobuf", (await import("highlight.js/lib/languages/protobuf")).default);
 	hljs.registerLanguage("puppet", (await import("highlight.js/lib/languages/puppet")).default);
 	hljs.registerLanguage("purebasic", (await import("highlight.js/lib/languages/purebasic")).default);
-	hljs.registerLanguage("python", (await import("highlight.js/lib/languages/python")).default);
+	// hljs.registerLanguage("python", (await import("highlight.js/lib/languages/python")).default);
 	hljs.registerLanguage("python-repl", (await import("highlight.js/lib/languages/python-repl")).default);
 	hljs.registerLanguage("q", (await import("highlight.js/lib/languages/q")).default);
 	hljs.registerLanguage("qml", (await import("highlight.js/lib/languages/qml")).default);
@@ -308,7 +308,7 @@ export async function registerHljsLanguages() {
 	hljs.registerLanguage("thrift", (await import("highlight.js/lib/languages/thrift")).default);
 	hljs.registerLanguage("tp", (await import("highlight.js/lib/languages/tp")).default);
 	hljs.registerLanguage("twig", (await import("highlight.js/lib/languages/twig")).default);
-	hljs.registerLanguage("typescript", (await import("highlight.js/lib/languages/typescript")).default);
+	// hljs.registerLanguage("typescript", (await import("highlight.js/lib/languages/typescript")).default);
 	hljs.registerLanguage("vala", (await import("highlight.js/lib/languages/vala")).default);
 	hljs.registerLanguage("vbnet", (await import("highlight.js/lib/languages/vbnet")).default);
 	hljs.registerLanguage("vbscript", (await import("highlight.js/lib/languages/vbscript")).default);

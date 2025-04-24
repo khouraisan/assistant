@@ -76,7 +76,7 @@
 }
 
 .prompt-structure li.sortable-ghost {
-	filter: brightness(1.2)
+	filter: brightness(1.2);
 }
 
 @keyframes a {

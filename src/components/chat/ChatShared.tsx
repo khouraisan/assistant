@@ -13,6 +13,7 @@ import {
 	FaSolidLink,
 	FaSolidPaperPlane,
 	FaSolidPencil,
+	FaSolidPlus,
 	FaSolidRepeat,
 	FaSolidStop,
 	FaSolidTrashCan,
@@ -40,6 +41,11 @@ import {renderToString} from "solid-js/web";
 import {useIsConnected} from "../hooks/useIsConnected.ts";
 import {useWidgetContext} from "../Widget.tsx";
 import {useToast} from "solid-notifications";
+import {Attachment} from "../hooks/useChat.ts";
+import python from "highlight.js/lib/languages/python";
+import javascript from "highlight.js/lib/languages/javascript";
+import typescript from "highlight.js/lib/languages/typescript";
+import {Spinner, SpinnerType} from "solid-spinner";
 
 export function Messages(props: {
 	ref: HTMLDivElement;
@@ -180,10 +186,18 @@ export function Messages(props: {
 								}
 								onEdit={(newText) => {
 									const message = v();
-									props.onEdit(message.id, {
-										role: message.role,
-										text: newText,
-									});
+									if (message.role === "assistant") {
+										props.onEdit(message.id, {
+											role: "assistant",
+											text: newText,
+										});
+									} else {
+										props.onEdit(message.id, {
+											role: "user",
+											text: newText,
+											attachments: message.attachments,
+										});
+									}
 									onModifyMessage(i);
 								}}
 								onDelete={() => {
@@ -240,11 +254,14 @@ export function Messages(props: {
 export function Input(props: {
 	value: string;
 	setValue: (value: string) => void;
+	attachments: Attachment[];
+	setAttachments: (value: Attachment[]) => void;
 	onSend: () => void;
 	isGenerating: boolean;
 	disabled: boolean;
 }) {
 	let textareaRef: HTMLTextAreaElement;
+	let hiddenInputRef: HTMLInputElement;
 
 	createEffect(() => {
 		void props.value;
@@ -290,6 +307,61 @@ export function Input(props: {
 		setTimeout(() => setShouldRaise(false), 1);
 	};
 
+	const uploadAttachments = async (files: File[]) => {
+		for (const file of files) {
+			// TODO: try/catch
+			// TODO: what if the component unmounts before the upload finishes
+			const promise = server.uploadAttachment(file);
+
+			const attachmentRef = {
+				id: "",
+				status: "uploading",
+			} as const;
+
+			props.setAttachments([...props.attachments, attachmentRef]);
+
+			const id = await promise;
+
+			if (id === null) {
+				console.error("Failed to upload attachment", file);
+				continue;
+			}
+
+			const newAttachments = props.attachments.map((v) => {
+				if (v === attachmentRef) {
+					return {
+						id,
+						status: "uploaded",
+					} as const;
+				}
+				return v;
+			});
+
+			props.setAttachments(newAttachments);
+		}
+	};
+
+	const handleAttachmentChange = async (e: Event) => {
+		const input = e.currentTarget as HTMLInputElement;
+		if (input.files === null || input.files.length === 0) return;
+
+		const files = [...input.files].filter((v) => v.type.startsWith("image/"));
+
+		await uploadAttachments(files);
+	};
+
+	const handleAttachmentDelete = (id: string) => {
+		props.setAttachments(props.attachments.filter((v) => v.id !== id));
+	};
+
+	const handlePaste = async (e: ClipboardEvent) => {
+		const files = Array.from(e.clipboardData?.files ?? []).filter((v) => v.type.startsWith("image/"));
+		if (files.length > 0) {
+			e.preventDefault();
+			await uploadAttachments(files);
+		}
+	};
+
 	return (
 		<div
 			class="chat-input-wrapper"
@@ -297,6 +369,17 @@ export function Input(props: {
 				raise: shouldRaise(),
 			}}
 		>
+			<AttachmentList attachments={props.attachments} onDelete={handleAttachmentDelete} />
+			<Button title="Attach file" class="attach" disabled={props.disabled} onClick={() => hiddenInputRef!.click()}>
+				<FaSolidPlus size={"2rem"} />
+				<input
+					ref={hiddenInputRef!}
+					type="file"
+					style={{display: "none"}}
+					accept="image/*"
+					onChange={handleAttachmentChange}
+				/>
+			</Button>
 			<textarea
 				ref={textareaRef!}
 				value={props.value}
@@ -313,8 +396,9 @@ export function Input(props: {
 						props.onSend();
 					}
 				}}
+				onPaste={handlePaste}
 			/>
-			<button
+			<Button
 				title={props.isGenerating ? "Stop generating" : "Send or continue message"}
 				class="primary"
 				disabled={props.disabled}
@@ -333,7 +417,35 @@ export function Input(props: {
 					}
 					fallback={<FaSolidArrowRight size={"2rem"} />}
 				/>
-			</button>
+			</Button>
+		</div>
+	);
+}
+
+function AttachmentList(props: {attachments: Attachment[]; onDelete: (id: string) => void}) {
+	return (
+		<div class="attachment-list">
+			<For each={props.attachments}>
+				{(v) => (
+					<div
+						classList={{
+							attachment: true,
+							[v.status]: true,
+						}}
+						role="button"
+						onClick={() => props.onDelete(v.id)}
+					>
+						<Switch>
+							<Match when={v.status === "uploading"}>
+								<Spinner type={SpinnerType.oval}></Spinner>
+							</Match>
+							<Match when={v.status === "uploaded"}>
+								<img src={server.getAttachmentUrl(v.id, true)} alt="attachment" />
+							</Match>
+						</Switch>
+					</div>
+				)}
+			</For>
 		</div>
 	);
 }
@@ -363,7 +475,7 @@ export function Message(props: {
 	createComputed(() => {
 		void props.message.id;
 
-		if(!mounted) return; // Don't reset initially
+		if (!mounted) return; // Don't reset initially
 
 		setIsEditing(false);
 		setIsHidden(false);
@@ -446,6 +558,7 @@ export function Message(props: {
 				isImmediatelyRelevant={props.isImmediatelyRelevant}
 				draggingDragbar={props.draggingDragbar}
 			/>
+			<MessageAttachments attachments={props.message.attachments ?? []} />
 		</div>
 	);
 }
@@ -774,6 +887,16 @@ function MessageContent(props: {
 	);
 }
 
+function MessageAttachments(props: {attachments: string[]}) {
+	return (
+		<Show when={props.attachments.length > 0}>
+			<div class="message-attachments">
+				<For each={props.attachments}>{(v) => <img src={server.getAttachmentUrl(v, true)} alt="attachment" />}</For>
+			</div>
+		</Show>
+	);
+}
+
 export function PlaceholderMessage(props: {role: "user" | "assistant"; lines: number}) {
 	const noOp = () => {};
 
@@ -913,7 +1036,7 @@ function ChatListItem(props: {
 				onDblClick={() => props.onDoubleClick()}
 			>
 				<header class={"mark-" + props.chat.color}>
-					<h3 title={props.chat.id}>{props.chat.name}</h3>
+					<h3 title={`${props.chat.name} (${props.chat.id})`}>{props.chat.name}</h3>
 					<h5 title={`Approximately ${props.chat.tokenCount} tokens`}>{props.chat.tokenCount}</h5>
 					<h5 title={props.chat.messageCount + " messages"}>{props.chat.messageCount}</h5>
 				</header>
@@ -958,6 +1081,12 @@ async function importHljs() {
 	const a = import("highlight.js/lib/core");
 	const hljs = (await a).default;
 
+	// Register very likely languages immediately
+	if (hljs.listLanguages().length === 0) {
+		hljs.registerLanguage("python", python);
+		hljs.registerLanguage("javascript", javascript);
+		hljs.registerLanguage("typescript", typescript);
+	}
 	utils.registerHljsLanguages(); // not awaiting
 	hljs.configure({ignoreUnescapedHTML: true});
 

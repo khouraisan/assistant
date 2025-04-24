@@ -2,9 +2,7 @@
 
 This is a list of chats
 
-
 ablublu
-
 
 bubuublbulu
 

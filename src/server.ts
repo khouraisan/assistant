@@ -18,16 +18,23 @@ export type ChatHead = {
 // How chats are stored locally
 export type ChatHeadRepr = ChatHead & {_fake?: boolean};
 
-export type RequestMessage = {
-	role: "user" | "assistant";
-	text: string;
-};
+export type RequestMessage =
+	| {
+			role: "user";
+			text: string;
+			attachments: Extract<Message, {role: "user"}>["attachments"];
+	  }
+	| {
+			role: "assistant";
+			text: string;
+			attachments?: never;
+	  };
 
 export type Message = {
 	id: string;
 	text: string;
 	date: Date;
-} & ({role: "user"; model?: never} | {role: "assistant"; model: string});
+} & ({role: "user"; model?: never; attachments: Array<string>} | {role: "assistant"; model: string; attachments?: never});
 
 export type TavernCharacter = {
 	id: string;
@@ -207,7 +214,7 @@ export async function modifyMessage(chatId: ChatId, messageId: string, newMessag
 }
 
 export async function deleteMessage(chatId: ChatId, messageId: string, below: boolean): Promise<boolean> {
-	if(messageId === "") {
+	if (messageId === "") {
 		logError("Invalid message ID", messageId);
 		return false;
 	}
@@ -283,11 +290,18 @@ export type OpenRouterModelId = OpenRouterModel["id"];
 
 let lastRequestTime = 0;
 
-export function getOpenRouterModels(): Promise<OpenRouterModel[]> {
+export async function getOpenRouterModels(): Promise<OpenRouterModel[]> {
 	// should work tbh
-	const cache = lastRequestTime + 1000 * 60 > Date.now() ? "default" : "force-cache";
+	const cache = lastRequestTime + 1000 * 60 > Date.now() ? "force-cache" : "default";
+	console.log("Fetching models", cache, lastRequestTime, Date.now());
 	// return fetch("https://openrouter.ai/api/v1/models", {cache})
-	return fetch(`${API_ROOT}/openroutermodels`, {cache}).then((res) => res.json());
+	return fetch(`${API_ROOT}/openroutermodels`, {cache})
+		.then((res) => res.json())
+		.then((v) => {
+			// Don't update on error
+			lastRequestTime = Date.now();
+			return v;
+		});
 }
 
 export type ChatSettings = {
@@ -361,4 +375,21 @@ export function defaultCharacter(): TavernCharacter {
 			greetings: [],
 		},
 	};
+}
+
+export function getAttachmentUrl(id: string, thumbnail: boolean): string {
+	return `${API_ROOT}/image/${id}?thumbnail=${thumbnail}`;
+}
+
+export async function uploadAttachment(file: File): Promise<string | null> {
+	const res = await fetch(`${API_ROOT}/image`, {
+		method: "POST",
+		body: new Blob([file], {type: file.type}),
+	});
+
+	if (!res.ok) {
+		logError("Failed to upload attachment", res.status);
+		return null;
+	}
+	return res.text();
 }

@@ -78,14 +78,9 @@ const Select: Component<SelectProps> = (props) => {
       () => local.initialValue,
       (value) => {
 		value !== undefined && select.setValue(value);
-		console.log("set initial value", value, select.value());
 	  },
     ),
   );
-
-  createEffect(() => {
-	console.log("otehr effect set initial value", select.value());
-  })
 
   return (
     <SelectContext.Provider value={select}>

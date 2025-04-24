@@ -23,11 +23,14 @@ export type OpenRouterMessage = {
 	role: string;
 	content:
 		| string
-		| Array<{
-				type: string;
-				text: string;
-				cache_control?: {type: string};
-		  }>;
+		| Array<
+				| {
+						type: "text";
+						text: string;
+						cache_control?: {type: string};
+				  }
+				| {type: "image_url"; image_url: {url: string}}
+		  >;
 };
 
 const openRouterHeaders = {
@@ -40,7 +43,7 @@ const openRouterHeaders = {
 export function OpenRouterProvider(): LLMProvider {
 	return {
 		async streamResponse(chat, abort) {
-			const httpResponse = await callOpenRouter(chat.toOpenRouterConfig(), abort);
+			const httpResponse = await callOpenRouter(await chat.toOpenRouterConfig(), abort);
 			return {
 				status: httpResponse.status,
 				stream: intoSSEConsumer(httpResponse),
@@ -54,6 +57,8 @@ export async function callOpenRouter(config: OpenRouterConfig, abort: AbortContr
 
 	console.log(config.messages);
 
+	Bun.write("./latest-request.json", JSON.stringify(config, null, 4));
+
 	const response = fetch("https://openrouter.ai/api/v1/chat/completions", {
 		method: "POST",
 		headers: openRouterHeaders,
@@ -65,11 +70,11 @@ export async function callOpenRouter(config: OpenRouterConfig, abort: AbortContr
 }
 
 function applyCaching(config: OpenRouterConfig): OpenRouterConfig {
-	if(!config.model.includes("claude")) return config;
-	
+	if (!config.model.includes("claude")) return config;
+
 	if (config.messages.filter((v) => v.role !== "system").length > 0) {
 		const last = config.messages.findLast((v) => v.role === "user");
-		if(last === undefined) return config;
+		if (last === undefined) return config;
 
 		if (typeof last.content === "string") {
 			last.content = [
@@ -79,6 +84,11 @@ function applyCaching(config: OpenRouterConfig): OpenRouterConfig {
 					cache_control: {type: "ephemeral"},
 				},
 			];
+		} else if (Array.isArray(last.content)) {
+			const lastText = last.content.find((v) => v.type === "text");
+			if (lastText === undefined) return config;
+
+			lastText.cache_control = {type: "ephemeral"};
 		}
 	}
 
