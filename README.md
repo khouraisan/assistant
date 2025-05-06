@@ -5,10 +5,13 @@ A lightweight LLM chat frontend that connects to OpenRouter. Currently in early 
 ## Features
 - Streaming with via WebSockets with smart compression
 - More lightweight than SillyTavern
+- More ergonomic
 - Looks nice I think (๑˃ᴗ˂)ﻭ
 
 ## Screenshots
 <img alt="Screenshot of UI" src="https://github.com/user-attachments/assets/c19aa1f2-fb29-4e92-9fb7-fe6a7f4f9f12" width="600">
+<br>
+<img alt="Screenshot of UI" src="https://github.com/user-attachments/assets/06aa6cb1-f426-46b8-9fd1-78baea33134e" width="400">
 
 ## Requirements
 - [Bun](https://bun.sh/) runtime (Any other runtime works as well but you'd have to polyfill/replace Bun.file, Bun.write, Bun.gzipSync, and Bun.gunzipSync)
