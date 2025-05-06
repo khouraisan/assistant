@@ -1,4 +1,4 @@
-import { AstBuilder, type AstEl } from "./macros-ast.ts";
+import {AstBuilder, type AstEl} from "./macro-ast.ts";
 import {
 	type Resoluble,
 	ResolubleArray,
@@ -6,7 +6,7 @@ import {
 	ResolubleMacro,
 	ResolubleSetLocalVar,
 	ResolubleText,
-} from "./macros-resolubles.ts";
+} from "./macro-resolubles.ts";
 
 /**
  * Current main exported function for compatibility with
@@ -87,10 +87,7 @@ export class MacroContext {
 	}
 
 	public getVar(k: string): Resoluble {
-		return (
-			this.localVars.get(k) ||
-			new ResolubleText("[FAILED TO RESOLVE LOCALVAR " + k + "]")
-		);
+		return this.localVars.get(k) || new ResolubleText("[FAILED TO RESOLVE LOCALVAR " + k + "]");
 	}
 
 	/**
@@ -123,18 +120,14 @@ export class MacroContext {
 			}
 			case "setvar": {
 				if (args.length < 2) {
-					return new ResolubleText(
-						"[FAILED TO RESOLVE SETVAR: INSUFFICIENT ARGUMENTS]",
-					);
+					return new ResolubleText("[FAILED TO RESOLVE SETVAR: INSUFFICIENT ARGUMENTS]");
 				}
 
 				return new ResolubleSetLocalVar(args[0], args[1], this);
 			}
 			case "getvar": {
 				if (args.length < 1) {
-					return new ResolubleText(
-						"[FAILED TO RESOLVE GETVAR: INSUFFICIENT ARGUMENTS]",
-					);
+					return new ResolubleText("[FAILED TO RESOLVE GETVAR: INSUFFICIENT ARGUMENTS]");
 				}
 
 				return new ResolubleGetLocalVar(args[0], this);
@@ -144,11 +137,7 @@ export class MacroContext {
 					return new ResolubleText("");
 				}
 
-				return new ResolubleArray([
-					new ResolubleText("{{" + macroName + ":"),
-					...args,
-					new ResolubleText("}}"),
-				]);
+				return new ResolubleArray([new ResolubleText("{{" + macroName + ":"), ...args, new ResolubleText("}}")]);
 			}
 		}
 	}
@@ -175,9 +164,7 @@ class MacroManager {
 
 	public run(s: string): string {
 		const ast = AstBuilder.buildAst(s);
-		const resoluble = new ResolubleArray(
-			ast.map((el) => this.evalAstEl(el)),
-		);
+		const resoluble = new ResolubleArray(ast.map((el) => this.evalAstEl(el)));
 
 		for (let i = 0; i < 10; i++) {
 			const p = resoluble.poll();

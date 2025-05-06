@@ -1,5 +1,5 @@
-import type { AstElMacro } from "./macros-ast.ts";
-import type { MacroContext } from "./macros.ts";
+import type {AstElMacro} from "./macro-ast.ts";
+import type {MacroContext} from "./macro.ts";
 
 /**
  * A Resoluble is anything that can eventually resolve into a string.
@@ -124,10 +124,7 @@ export class ResolubleMacro implements Resoluble {
 		}
 
 		if (this.macroName.poll()) {
-			this.resultResoluble = this.context.evalMacro(
-				this.macroName.resolve(),
-				this.argsResolubles,
-			);
+			this.resultResoluble = this.context.evalMacro(this.macroName.resolve(), this.argsResolubles);
 			return this.resultResoluble.poll();
 		}
 
@@ -180,13 +177,7 @@ export class ResolubleSetLocalVar implements Resoluble {
 	}
 
 	public resolve(): string {
-		return this.resolvedOnce
-			? ""
-			: "[FAILED TO RESOLVE SETVAR:" +
-					this.varName.resolve() +
-					":" +
-					this.varValue.resolve() +
-					"]";
+		return this.resolvedOnce ? "" : "[FAILED TO RESOLVE SETVAR:" + this.varName.resolve() + ":" + this.varValue.resolve() + "]";
 	}
 }
 

@@ -77,11 +77,7 @@ export class AstBuilder {
 					break;
 				}
 				case "}": {
-					if (
-						this.s.length < this.p + 1 ||
-						this.s[this.p + 1] !== "}" ||
-						!inMacro
-					) {
+					if (this.s.length < this.p + 1 || this.s[this.p + 1] !== "}" || !inMacro) {
 						cur.push("}");
 						this.p++;
 						continue;
