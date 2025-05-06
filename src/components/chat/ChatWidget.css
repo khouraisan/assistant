@@ -16,6 +16,27 @@
 	padding: var(--gap);
 }
 
+.chat-greeting-screen {
+	flex-grow: 1;
+	text-align: center;
+	justify-content: space-evenly;
+	display: flex;
+	flex-direction: column;
+
+	h1 {
+		font-size: 5rem;
+	}
+	p {
+		font-size: 2rem;
+	}
+}
+
+/* Stub for space-evenly */
+.chat-greeting-screen::after {
+	content: "";
+	display: block;
+}
+
 .chat-messages {
 	flex-grow: 1;
 	overflow-x: hidden;
@@ -393,7 +414,7 @@
 	padding-left: 0;
 	padding-top: var(--gap);
 
-	max-height: calc(10lh + 2rem);
+	max-height: calc(10lh + 2rem + var(--gap));
 	overflow-y: auto;
 
 	scrollbar-color: var(--bg-secondary-lighter) var(--bg-primary-light);
@@ -425,6 +446,10 @@
 	line-height: 1.25;
 }
 
+.message.tool summary {
+	opacity: 0.5;
+}
+
 .message-header-options button.discard-edit {
 	display: none;
 }
@@ -442,6 +467,13 @@
 	.chat-messages {
 		overflow: hidden;
 	}
+}
+
+/* ble */
+.chat-messages > #_FaSolidArrowUp,
+.chat-messages > #_FaSolidArrowDown,
+.chat-messages > #_FaSolidClipboard {
+	display: none;
 }
 
 .message-attachments {
@@ -701,7 +733,7 @@ button.chat-settings-option {
 	gap: var(--gap);
 }
 
-.chat-drawer input {
+.chat-drawer input[type="text"] {
 	background-color: var(--bg-primary-light);
 }
 
@@ -715,7 +747,21 @@ button.chat-settings-option {
 	box-sizing: content-box;
 }
 .chat-drawer textarea:disabled,
-.chat-drawer input:disabled {
+.chat-drawer input[type="text"]:disabled {
 	cursor: not-allowed;
 	background-color: var(--bg-primary-dark);
+}
+
+/* test */
+
+.chunk {
+	opacity: 1;
+	transition: opacity 66.67ms ease-in-out;
+}
+
+/* lol it has to be under the actual selector */
+@starting-style {
+	.chunk {
+		opacity: 0;
+	}
 }

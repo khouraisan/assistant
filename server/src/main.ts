@@ -12,10 +12,12 @@ import * as character from "./character";
 import * as wsCompression from "./wsCompression";
 import * as image from "./image";
 import compression from "compression";
-import type {LLMProvider} from "./provider/provider";
+import type {LLMProvider, ToolChunk} from "./provider/provider";
 import {OpenRouterProvider} from "./provider/openrouter";
 import {DebugProvider} from "./provider/debug";
 import {PassThrough} from "stream";
+import type {Tool} from "./tool/tool";
+import {SearchTool} from "./tool/search";
 
 export const DATA_DIR = Bun.env.NODE_ENV === "test" ? "./test-data" : "./data";
 export const CHATS_DIR = path.join(DATA_DIR, "chats");
@@ -300,8 +302,10 @@ wss.on("connection", (ws) => {
 
 				let assistantMessage: Message;
 				let chat;
-				let fullResponse;
+				let streamingResult;
 				let existingMessageIndex = -1;
+
+				const tools = [new SearchTool()];
 
 				try {
 					if (chatId === undefined) {
@@ -378,15 +382,15 @@ wss.on("connection", (ws) => {
 
 					// Start streaming the response
 
-					const provider = OpenRouterProvider();
+					const provider = OpenRouterProvider({tools});
 					// const provider = DebugProvider({
 					// 	text: await Bun.file("./debug-response.txt").text(),
 					// });
 
 					if (data.type === "generate") {
-						fullResponse = await streamingResponse(ws, chat, abortController, provider);
+						streamingResult = await streamingResponse(ws, chat, abortController, provider);
 					} else if (data.type === "regenerate") {
-						fullResponse = await streamingResponse(ws, chat.slice(messageId!), abortController, provider);
+						streamingResult = await streamingResponse(ws, chat.slice(messageId!), abortController, provider);
 					} else {
 						throw "unreachable";
 					}
@@ -395,13 +399,29 @@ wss.on("connection", (ws) => {
 				}
 
 				// Save the complete response
-				assistantMessage.text = fullResponse;
+				assistantMessage.text = streamingResult.fullResponse;
+
+				if (streamingResult.toolCalls.length > 0) {
+					assistantMessage.toolCalls = streamingResult.toolCalls;
+				}
+
+				const toolCallMessages = await Promise.all(
+					streamingResult.toolCalls.map(async (call) => {
+						const toolResult = await tools[call.index].call(JSON.parse(call.content));
+						return Message.tool({
+							callId: call.id,
+							content: toolResult,
+						});
+					})
+				);
 
 				if (data.type === "generate") {
 					// Add message for normal generation
 					chat.messages.push(assistantMessage);
 				}
 				// For regeneration, the message is already updated in place
+
+				chat.messages.push(...toolCallMessages);
 
 				// Update date
 				assistantMessage.updateDate("now");
@@ -438,7 +458,11 @@ wss.on("connection", (ws) => {
 							if (!aiTitle) return;
 
 							chat.name = aiTitle;
-							chat.canAutogenerateTitle = false;
+
+							if (chat.messages.length >= 4) {
+								// Generate the title at 2 messages and at 4 again
+								chat.canAutogenerateTitle = false;
+							}
 
 							await saveChat(chat);
 							notifyClients({
@@ -835,6 +859,7 @@ app.put("/messages/insert", async (req, res) => {
 		}
 
 		chat.messages.splice(insertIndex, 0, newMessage);
+		// TODO: modify history too
 
 		await saveChat(chat);
 
@@ -972,6 +997,7 @@ app.delete("/messages", async (req, res) => {
 		const deletedId = chat.messages[deleteIndex].id;
 
 		chat.messages.splice(deleteIndex, 1);
+		// TODO: modify history too
 
 		await saveChat(chat);
 
@@ -1024,6 +1050,7 @@ app.delete("/messages/:id", validateMessageId, async (req, res) => {
 			console.log("below", index, chat.messages.length - index);
 			chat.messages.splice(index, chat.messages.length - index);
 		}
+		// TODO: modify history too
 
 		await saveChat(chat);
 
@@ -1113,6 +1140,33 @@ app.post("/characters/new", async (req, res) => {
 		console.log("new character", {characterId: newCharacter.id});
 
 		res.json({characterId: newCharacter.id});
+	} catch (error) {
+		res.status(500).json({error: "Failed to create character"});
+	}
+});
+
+app.patch("/characters/:id", validateCharacterId, async (req, res) => {
+	try {
+		const {patch} = req.body;
+
+		if (!req.headers["content-type"]?.includes("application/json-patch+json")) {
+			res.status(400).json({error: "Content type must be 'application/json-patch+json'"});
+			return;
+		}
+
+		const {id} = req.params;
+
+		const character = await getCharacter(id);
+
+		if (character === null) {
+			res.status(404).json({error: "Character not found"});
+			return;
+		}
+
+		if (character === "error") {
+			res.status(500).json({error: "Failed to load character"});
+			return;
+		}
 	} catch (error) {
 		res.status(500).json({error: "Failed to create character"});
 	}
@@ -1355,8 +1409,6 @@ app.post("/image", async (req, res) => {
 			return;
 		}
 
-		await Bun.sleep(1000);
-
 		await saveImage(imageId, buffer);
 
 		res.send(imageId);
@@ -1367,7 +1419,15 @@ app.post("/image", async (req, res) => {
 });
 
 // Should still resolve with a partial response on abort
-async function streamingResponse(ws: WebSocket, chat: chat.Chat, abort: AbortController, provider: LLMProvider): Promise<string> {
+async function streamingResponse(
+	ws: WebSocket,
+	chat: chat.Chat,
+	abort: AbortController,
+	provider: LLMProvider
+): Promise<{
+	fullResponse: string;
+	toolCalls: ToolChunk[];
+}> {
 	console.log("stream generation", {chatId: chat.id});
 
 	// openrouter.openRouterStreaming(chat.toOpenRouterConfig(), abort);
@@ -1379,9 +1439,10 @@ async function streamingResponse(ws: WebSocket, chat: chat.Chat, abort: AbortCon
 
 	let fullResponse = "";
 
-	let batch = [];
+	const batch = [];
 	let t1 = Date.now();
 
+	// 60 fps
 	const BATCH_TIME = 1000 / 60;
 
 	const shorthandId = Math.random().toString(16).slice(2, 5);
@@ -1397,30 +1458,49 @@ async function streamingResponse(ws: WebSocket, chat: chat.Chat, abort: AbortCon
 		})
 	);
 
+	const toolCalls = [];
+
 	try {
 		const sse = response.stream;
+		// tool index -> chunk
 
 		for await (const chunk of sse) {
+			console.log("chunk", chunk);
 			switch (chunk.type) {
 				case "message":
 					fullResponse += chunk.content;
 
 					batch.push(chunk.content);
 
-					// 100ms
+					// await Bun.sleep(500);
+
+					// Send the batch if it's full or if the time has passed
 					if (Date.now() - t1 > BATCH_TIME && batch.length > 0) {
 						t1 = Date.now();
-						// ws.send(JSON.stringify({type: "generationChunk", chatId: chat.id, message: batch.join("")}));
 						ws.send(JSON.stringify({_sh: shorthandId, message: batch.join("")}));
 						console.log("sent", batch.length);
-						batch = [];
+						batch.length = 0;
 					}
 
 					break;
+				case "tool": {
+					// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+					if (toolCalls[chunk.index] === undefined) {
+						toolCalls[chunk.index] = chunk;
+					}
+					const toolCall = toolCalls[chunk.index];
+
+					toolCall.content += chunk.content;
+
+					break;
+				}
 				case "error":
 					console.error("OpenRouter error:", chunk.content);
 					ws.send(JSON.stringify({type: "generationError", message: chunk.content, chatId: chat.id}));
-					return "[error]\n\n" + JSON.stringify(chunk.content, null, 4);
+					return {
+						fullResponse: "[error]\n\n" + JSON.stringify(chunk.content, null, 4),
+						toolCalls: [],
+					};
 			}
 		}
 	} catch (ex: any) {
@@ -1441,7 +1521,12 @@ async function streamingResponse(ws: WebSocket, chat: chat.Chat, abort: AbortCon
 		);
 	}
 
-	return fullResponse;
+	return {
+		fullResponse,
+		// Remove potential empty slots
+		// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+		toolCalls: toolCalls.filter((v) => v !== undefined) as ToolChunk[],
+	};
 }
 
 export async function main(port: number, hostname: string, listen?: () => void) {

@@ -2,15 +2,18 @@ export type MessageId = string;
 
 export class Message {
 	public readonly id: MessageId;
-	public role: "user" | "assistant";
+	public role: "user" | "assistant" | "tool";
 	public text: string;
 	public date: Date;
 	// attachments are only for user messages
 	public attachments?: Array<string>; // image ids
 	// model is undefined if role is user
 	public model?: string;
+	// Only for tool messages
+	public toolCallId?: string;
+	public toolCalls?: any[];
 
-	constructor({role, text, date, model}: {role: "user" | "assistant"; text: string; date?: Date; model?: string}) {
+	constructor({role, text, date, model}: {role: Message["role"]; text: string; date?: Date; model?: string}) {
 		this.id = Math.random().toString(36).substring(2, 15);
 		this.role = role;
 		this.text = text;
@@ -27,6 +30,16 @@ export class Message {
 		if (role === "user") {
 			this.attachments = [];
 		}
+	}
+
+	static tool({callId, content}: {callId: string; content: string}) {
+		const v = new Message({
+			role: "tool",
+			text: content,
+			date: new Date(),
+		});
+		v.toolCallId = callId;
+		return v;
 	}
 
 	updateDate(date: Date | "now") {
@@ -46,6 +59,8 @@ export class Message {
 		});
 		(v.id as MessageId) = data.id;
 		v.attachments = v.role === "user" ? data.attachments : undefined;
+		v.toolCallId = v.role === "tool" ? data.toolCallId : undefined;
+		v.toolCalls = v.role === "assistant" ? data.toolCalls : undefined;
 		return v;
 	}
 }

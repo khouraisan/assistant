@@ -1,17 +1,6 @@
 import {createStore, SetStoreFunction} from "solid-js/store";
 import "./CharacterChatSettings.css";
-import {
-	createComputed,
-	createEffect,
-	createRenderEffect,
-	createResource,
-	createSignal,
-	For,
-	on,
-	onCleanup,
-	onMount,
-	Show,
-} from "solid-js";
+import {createComputed, createEffect, createRenderEffect, createResource, createSignal, For} from "solid-js";
 import {createOptions, Select} from "@thisbeyond/solid-select";
 import {isSelectingSelf} from "../../util";
 import Button from "../Button";
@@ -38,6 +27,7 @@ export function CharacterChatSettings(props: {}) {
 	const currentPreset = () => presets.find((s) => s.id === currentPresetId()) ?? null;
 
 	// @ts-expect-error: Not assignable
+	// TODO: i dont know if this function is correct tbh
 	const setCurrentPreset: SetStoreFunction<Preset> = (...args: [any]) => setPresets((v) => v.id === currentPresetId(), ...args);
 
 	const [pickedCharacters, setPickedCharacters] = createSignal<server.TavernCharacterHead[]>([]);

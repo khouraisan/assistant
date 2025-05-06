@@ -226,3 +226,13 @@
 .character-editor .neat-input {
 	resize: none;
 }
+
+.character-editor .tabbed-container {
+	height: 100%;
+	width: 100%;
+}
+
+.character-editor .tabbed-container .neat-input-area {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}

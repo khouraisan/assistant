@@ -7,9 +7,11 @@ import {
 	createResource,
 	createSignal,
 	For,
+	Match,
 	onCleanup,
 	onMount,
 	Show,
+	Switch,
 	untrack,
 } from "solid-js";
 import * as server from "../../server.ts";
@@ -24,6 +26,7 @@ import {createStore, reconcile} from "solid-js/store";
 import {trackStore} from "@solid-primitives/deep";
 import {NotifyMessage} from "../hooks/useWs.tsx";
 import {NeatInputarea} from "./NeatInputArea.tsx";
+import {Tabbed, TabbedButtonContext} from "../Tabbed.tsx";
 
 export function CharacterManagerWidget() {
 	const widgetCtx = useWidgetContext();
@@ -157,18 +160,21 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 		return !deepEquals(unsavedCharacter, character());
 	};
 
-	createComputed(() => {
+	const resetCharacter = () => {
 		const c = character();
 		console.log("character", c);
 		if (!c) return;
 		setUnsavedCharacter(reconcile(c));
-	});
+	};
+
+	createComputed(resetCharacter);
 
 	let characterDiff = {};
 
 	// Find which settings have changed
 	createEffect((oldData) => {
 		const newData = myUnwrap(trackStore(unsavedCharacter));
+		console.log("change", newData);
 
 		if (mounted && untrack(() => character() !== null)) {
 			const partial = getUpdatedProperties(oldData as server.TavernCharacter, newData);
@@ -180,9 +186,12 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 		return myUnwrap(unsavedCharacter);
 	}, unsavedCharacter);
 
-	onMount(() => (mounted = true));
+	const onAddGreeting = (ctx: TabbedButtonContext<string>) => {
+		setUnsavedCharacter("data", "greetings", unsavedCharacter.data.greetings.length, "");
+		ctx.setTab({index: unsavedCharacter.data.greetings.length});
+	};
 
-	const greetingSignal = () => unsavedCharacter.data.greetings[0] ?? "";
+	onMount(() => (mounted = true));
 
 	return (
 		<Show when={character() !== null} fallback={<h2>Select a character</h2>}>
@@ -198,7 +207,7 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 						disabled={!characterChanged()}
 						timed={500}
 						color="secondary"
-						onClick={() => {}}
+						onClick={resetCharacter}
 						class="revert-character"
 						title="Revert changes"
 					>
@@ -228,27 +237,50 @@ function CharacterEditor(props: {currentCharacterId: string | null}) {
 								onInput={(e) => setUnsavedCharacter("data", "nickname", e.currentTarget.value)}
 							/>
 						</div>
-						<input class="author-editor" placeholder="Author" value={unsavedCharacter.data.author} />
-						<input class="version-editor" placeholder="0.0.0" value={unsavedCharacter.data.version} />
-						<textarea class="notes-editor" placeholder="Author's notes" value={unsavedCharacter.data.notes} />
+						<input
+							class="author-editor"
+							placeholder="Author"
+							value={unsavedCharacter.data.author}
+							onInput={(e) => setUnsavedCharacter("data", "author", e.currentTarget.value)}
+						/>
+						<input
+							class="version-editor"
+							placeholder="0.0.0"
+							value={unsavedCharacter.data.version}
+							onInput={(e) => setUnsavedCharacter("data", "version", e.currentTarget.value)}
+						/>
+						<textarea
+							class="notes-editor"
+							placeholder="Author's notes"
+							value={unsavedCharacter.data.notes}
+							onInput={(e) => setUnsavedCharacter("data", "notes", e.currentTarget.value)}
+						/>
 					</section>
 				</section>
-				<NeatInputarea
-					placeholder="Character description"
-					value={unsavedCharacter.data.description}
-					onInput={(v) => setUnsavedCharacter("data", "description", v)}
-				/>
-				<NeatInputarea
-					placeholder="Greeting"
-					value={greetingSignal()}
-					onInput={(v) => {
-						if (v === "") {
-							setUnsavedCharacter("data", "greetings", []);
-						} else {
-							setUnsavedCharacter("data", "greetings", 0, v);
-						}
-					}}
-				/>
+				<Tabbed
+					tabs={["Description", ...unsavedCharacter.data.greetings.map((_, i) => `Greeting ${i + 1}`)]}
+					extraButtons={[["+ Add greeting", onAddGreeting]]}
+				>
+					{(tab, tabIndex) => (
+						<Show
+							when={tab === "Description"}
+							children={
+								<NeatInputarea
+									placeholder="Character description"
+									value={unsavedCharacter.data.description}
+									onInput={(v) => setUnsavedCharacter("data", "description", v)}
+								/>
+							}
+							fallback={
+								<NeatInputarea
+									placeholder={tab}
+									value={tab}
+									onInput={(v) => setUnsavedCharacter("data", "greetings", tabIndex() - 1, v)}
+								/>
+							}
+						></Show>
+					)}
+				</Tabbed>
 			</div>
 		</Show>
 	);

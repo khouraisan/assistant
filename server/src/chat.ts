@@ -3,6 +3,7 @@ import * as openrouter from "./provider/openrouter";
 import * as macros from "./macros";
 import {asDataUrl} from "./image";
 import {getImage} from "./main";
+import type {Tool} from "./tool/tool";
 
 export type ChatId = string;
 
@@ -10,7 +11,9 @@ export type ChatSettings = {
 	temperature: number;
 	topP: number;
 	systemPrompt: string;
+	maxTokens: number;
 	color: "none" | "red" | "green" | "yellow" | "blue" | "orange" | "purple";
+	searchTool: boolean;
 } & ChatSettingsProvider;
 
 export type ChatSettingsProvider = {
@@ -34,11 +37,13 @@ function defaultSettings(): ChatSettings {
 		model: "anthropic/claude-3.7-sonnet",
 		temperature: 0.8,
 		topP: 1,
+		maxTokens: 4096,
 		systemPrompt: `\
 - The current date is {{weekday}}, {{date}}.
 - Use British English.
 - Use Oxford English spelling.`,
 		color: "none",
+		searchTool: false,
 	};
 }
 
@@ -161,7 +166,7 @@ export class Chat {
 		});
 	}
 
-	async toOpenAiMessages(options: {system?: string}): Promise<openrouter.OpenRouterMessage[]> {
+	async toOpenAiMessages(options: {system?: string; tools: Tool[]}): Promise<openrouter.OpenRouterMessage[]> {
 		const attachments = new Map<string, string[]>();
 
 		const promises: Promise<void>[] = [];
@@ -188,25 +193,52 @@ export class Chat {
 
 		await Promise.all(promises);
 
-		const messages: openrouter.OpenRouterMessage[] = this.messages.map((v) => ({
-			role: v.role,
-			content: [
-				{
-					type: "text",
-					text: v.text,
-				},
-				// ugly uugh!
-				...(attachments.get(v.id)?.map(
-					(v) =>
-						({
-							type: "image_url",
-							image_url: {
-								url: v,
-							},
-						}) as const
-				) ?? []),
-			],
-		}));
+		const messages: openrouter.OpenRouterMessage[] = this.messages.map((v) => {
+			if (v.role === "tool") {
+				return {
+					role: "tool",
+					tool_call_id: v.toolCallId,
+					content: v.text,
+				};
+			} else {
+				const msg = {
+					role: v.role,
+					content: [
+						{
+							type: "text",
+							text: v.text,
+						},
+						// ugly uugh!
+						...(attachments.get(v.id)?.map(
+							(v) =>
+								({
+									type: "image_url",
+									image_url: {
+										url: v,
+									},
+								}) as const
+						) ?? []),
+					],
+				} as any;
+				if (v.toolCalls !== undefined) {
+					msg.tool_calls = v.toolCalls.map((call) => ({
+						index: call.index,
+						id: call.id,
+						type: "function",
+						function: {
+							name: options.tools[call.index]?.name,
+							arguments: call.content,
+						},
+					}));
+					// Anthropic needs msg.content that has tool_calls to be a string because fuck knows why!!!
+					msg.content = msg.content
+						.filter((v: any) => v.type === "text")
+						.map((v: any) => v.text)
+						.join("");
+				}
+				return msg;
+			}
+		});
 
 		if (options.system) {
 			messages.unshift({
@@ -230,15 +262,23 @@ export class Chat {
 		return messages;
 	}
 
-	async toOpenRouterConfig(): Promise<openrouter.OpenRouterConfig> {
-		const messages = await this.toOpenAiMessages({system: this.settings.systemPrompt});
+	async toOpenRouterConfig(options: {tools: Tool[]}): Promise<openrouter.OpenRouterConfig> {
+		const messages = await this.toOpenAiMessages({system: this.settings.systemPrompt, tools: options.tools});
 
-		return {
+		const config = {
 			model: this.settings.model,
 			temperature: this.settings.temperature,
 			top_p: this.settings.topP,
+			max_tokens: this.settings.maxTokens,
 			messages,
-		};
+		} as openrouter.OpenRouterConfig;
+
+		// TODO: better organisation
+		if (this.settings.searchTool && options.tools.length > 0) {
+			config.tools = options.tools.map((tool) => tool.definition());
+		}
+
+		return config;
 	}
 
 	async autogenerateTitle(): Promise<string | null> {

@@ -1,5 +1,7 @@
 import * as markdown from "../markdown.ts";
+import * as markdownNew from "../markdownNew.tsx";
 import * as server from "../../server.ts";
+import morphdom from "morphdom";
 import {
 	FaSolidArrowDown,
 	FaSolidArrowRight,
@@ -46,6 +48,10 @@ import python from "highlight.js/lib/languages/python";
 import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import {Spinner, SpinnerType} from "solid-spinner";
+import {unified} from "unified";
+import h from "solid-js/h";
+import remarkParse from "remark-parse";
+import {Node} from "mdast";
 
 export function Messages(props: {
 	ref: HTMLDivElement;
@@ -67,56 +73,16 @@ export function Messages(props: {
 
 	const [lockScroll, setLockScroll] = createSignal(true);
 
-	createEffect((lastMessageLen: null | number) => {
+	createEffect(() => {
 		void props.streamingMessage;
 		void props.messages;
-
-		// Scroll to the bottom when we're generating or when a new message is added
-		const generating = props.isGenerating;
-		// const newMessage = lastMessageLen !== (props.messages?.length ?? -1);
-		const newMessage = false;
-		// // TODO: uuh i guess i should only scroll when we're generating here
-		// // TODO: and handle the initial scroll when sending in onSend somewhere
-		// // TODO: i could check for the messages length and last message id but i dont wanna
-		// if (generating || newMessage) {
-		// 	const distFromBottom =
-		// 		chatMessagesRef.scrollHeight - chatMessagesRef.clientHeight - chatMessagesRef.scrollTop;
-		// 	// console.log("scrolling because", generating ? "generating" : "new message", distFromBottom);
-		// 	// TODO: This is ran after streamingMessage is unmounted so the distance will very likely be
-		// 	// TODO: larger than 200.
-		// 	if (distFromBottom < 20) {
-		// 		chatMessagesRef!.scrollTo({top: chatMessagesRef!.scrollHeight});
-		// 	} else {
-		// 		// console.log("not scrolling because dist", distFromBottom);
-		// 	}
-		// }
-
-		// // TODO: skip this if content-visibility optimisation is disabled
-		// // fixed in css??
-		// // nope it's not fixed. uncommenting
-		// if (lastMessageLen !== null && lastMessageLen !== (props.messages?.length ?? -1) && !generating) {
-		// 	// Means the streaming has ended and a special streaming message got deleted and a
-		// 	// general message got added. This needs to be handled.
-		// 	// Even more jank. I should honestly just remove content-visibility from the messages
-
-		// 	const distFromBottom =
-		// 		chatMessagesRef.scrollHeight - chatMessagesRef.clientHeight - chatMessagesRef.scrollTop;
-		// 	if (distFromBottom < 200) {
-		// 		setTimeout(() => {
-		// 			chatMessagesRef!.children[chatMessagesRef!.children.length - 1].scrollIntoView({
-		// 				behavior: "instant",
-		// 				block: "start",
-		// 			});
-		// 		}, 10);
-		// 	}
-		// }
 
 		if (lockScroll()) {
 			chatMessagesRef.scrollTo({top: chatMessagesRef.scrollHeight});
 		}
 
 		return props.messages?.length ?? null;
-	}, null);
+	});
 
 	const streamingMessageObject = () =>
 		props.streamingMessage !== null
@@ -157,6 +123,11 @@ export function Messages(props: {
 				setLockScroll(list.scrollTop + list.clientHeight >= list.scrollHeight - 15);
 			}}
 		>
+			{/* Used in markdownNew.tsx */}
+			<FaSolidClipboard id="_FaSolidClipboard" />
+			<FaSolidArrowUp id="_FaSolidArrowUp" />
+			<FaSolidArrowDown id="_FaSolidArrowDown" />
+			{/*  */}
 			<Show when={props.messages !== null && props.messages.length === 0}>
 				<EmptyChatStub />
 			</Show>
@@ -195,7 +166,7 @@ export function Messages(props: {
 										props.onEdit(message.id, {
 											role: "user",
 											text: newText,
-											attachments: message.attachments,
+											attachments: message.attachments!,
 										});
 									}
 									onModifyMessage(i);
@@ -548,8 +519,9 @@ export function Message(props: {
 				isFirstAssistantMessage={props.isFirstAssistantMessage}
 			/>
 			<MessageContent
-				chatRef={props.chatRef}
+				role={props.message.role}
 				text={props.message.text}
+				chatRef={props.chatRef}
 				onEditKeyDown={onEditKeyDown}
 				onEditInput={(ev) => setEditValue((ev.currentTarget as HTMLTextAreaElement).value)}
 				isEditing={isEditing()}
@@ -669,6 +641,7 @@ function MessageHeaderOptions(props: {
 
 function MessageContent(props: {
 	text: string;
+	role: "user" | "assistant" | "tool";
 	isGeneratingThis: boolean;
 	isAnyGenerating: boolean;
 	isEditing: boolean;
@@ -725,32 +698,76 @@ function MessageContent(props: {
 		}
 	});
 
+	// Fade in logic
+	// FIXME: this kind of works but not in code blocks for example
+	//
+	// const [wrappedText, setWrappedText] = createSignal("");
+	// createComputed((oldText: string) => {
+	// 	if (!props.isGeneratingThis) {
+	// 		setWrappedText("");
+	// 		return "";
+	// 	}
+
+	// 	const newText = props.text;
+
+	// 	const wrapped = `<span class='chunk'>${utils.suffixDiff(oldText, newText)}</span>`;
+	// 	setWrappedText((old) => old + wrapped);
+
+	// 	return newText;
+	// }, props.text);
+
+	// const textForMarkdown = () => (props.isGeneratingThis ? wrappedText() : props.text);
+	// const compiledMarkdown = createMemo(() => (isRelevantToUser() ? markdownNew.compileMarkdownNew(textForMarkdown()) : props.text));
+
 	const [isRelevantToUser, setIsRelevantToUser] = createSignal(props.isImmediatelyRelevant ?? false);
-	const compiledMarkdown = createMemo(() => (isRelevantToUser() ? markdown.compileMarkdown(props.text) : props.text));
+	const compiledMarkdown = createMemo(() =>
+		isRelevantToUser() && props.role !== "tool" ? markdownNew.compileMarkdownNew(props.text) : props.text
+	);
+
+	function updateMarkdownContent(element: HTMLElement, newHtml: string): void {
+		// If the element is empty, just set the HTML directly
+		if (!element.firstChild) {
+			element.innerHTML = newHtml;
+			return;
+		}
+
+		// Create a temporary container with the new content
+		const tempContainer = element.cloneNode(false) as HTMLElement;
+		tempContainer.innerHTML = newHtml;
+
+		morphdom(element, tempContainer, {
+			onBeforeElUpdated: (fromEl, toEl) => {
+				// Docs say this improves perf...since 2016
+				if (fromEl.isEqualNode(toEl)) {
+					return false;
+				}
+
+				if (fromEl.classList.contains("code-block-container") && toEl.classList.contains("code-block-container")) {
+					const toCode = toEl.querySelector("code");
+					const fromCode = fromEl.querySelector("code");
+					if (toCode && fromCode) {
+						toCode.classList.toggle("expanded", fromCode.classList.contains("expanded"));
+					}
+				}
+
+				return true;
+			},
+			childrenOnly: true,
+		});
+	}
+
+	// Effect that updates the content of the message
+	createEffect(() => {
+		void props.isEditing;
+
+		updateMarkdownContent(messageRef!, compiledMarkdown());
+	});
 
 	createEffect(() => {
 		void compiledMarkdown();
 
-		if (!isRelevantToUser() || props.isGeneratingThis || props.isEditing) {
+		if (!isRelevantToUser() || props.isGeneratingThis || props.isEditing || props.role === "tool") {
 			return;
-		}
-
-		function addCodeBlockHeader(code: HTMLElement, lang: string) {
-			const pre = code.parentElement as HTMLPreElement;
-
-			const testNode = document.createElement("div");
-			testNode.className = "code-header";
-			testNode.innerHTML = `\
-<h5>${lang}</h5>
-<div>
- <button class="copy-button" title="Copy code">${document.querySelector("._svg-FaSolidClipboard")!.innerHTML}</button>
- <button class="expand-button">
-  <div title="Collapse code block">${document.querySelector("._svg-FaSolidArrowUp")!.innerHTML}</div>
-  <div title="Expand code block">${document.querySelector("._svg-FaSolidArrowDown")!.innerHTML}</div>
- </button>
-</div>
-`;
-			pre.insertBefore(testNode, code);
 		}
 
 		// There's some race condition going one where the highlighted elements get replaced.
@@ -763,35 +780,16 @@ function MessageContent(props: {
 							.split(" ")
 							.find((v) => v.startsWith("language-"))
 							?.slice(9) ?? "text";
-					addCodeBlockHeader(block, lang);
+					// addCodeBlockHeader(block, lang);
 				}
 
 				if (block.dataset.highlighted === "yes") continue;
+				if (block.innerText.length > 10000) {
+					console.log("not highlighting long code block", {max: 10000, length: block.innerText.length});
+					continue;
+				}
 
 				setTimeout(async () => (await importHljs()).highlightElement(block as HTMLElement), 0);
-			}
-
-			// This unselects the trailing whitespace after an inline code element in most situations
-			for (const code of messageRef!.querySelectorAll(":not(pre) code")) {
-				(code as HTMLElement).addEventListener("click", (ev: MouseEvent) => {
-					const selection = window.getSelection();
-
-					if (
-						ev.detail !== 2 ||
-						!selection?.rangeCount ||
-						code.nextSibling === null ||
-						code.nextSibling.textContent === null ||
-						code.childNodes.length === 0 ||
-						Array.from(code.childNodes).some((v) => v.nodeName !== "#text")
-					)
-						return;
-
-					const range = selection.getRangeAt(0);
-
-					if (range.endOffset === 1 && code.nextSibling.textContent.startsWith(" ")) {
-						range.setEnd(code.firstChild!, (code.firstChild! as Text).length!);
-					}
-				});
 			}
 		}, 0);
 	});
@@ -799,21 +797,43 @@ function MessageContent(props: {
 	const handleOnClickDirect = (ev: MouseEvent) => {
 		if (ev.target instanceof Element === false) return;
 
+		// Code block copy and expand button logic
 		const closestButton = ev.target.closest("button:is(.expand-button, .copy-button)");
-		if (closestButton === null) return;
+		if (closestButton !== null) {
+			const code = ev.target.closest("pre")?.querySelector("code");
+			if (!code) return;
 
-		const code = ev.target.closest("pre")?.querySelector("code");
-		if (!code) return;
+			if (closestButton.classList.contains("copy-button")) {
+				const textToCopy = code.innerText;
+				if (textToCopy) {
+					navigator.clipboard.writeText(textToCopy);
+				}
+			}
 
-		if (closestButton.classList.contains("copy-button")) {
-			const textToCopy = code.innerText;
-			if (textToCopy) {
-				navigator.clipboard.writeText(textToCopy);
+			if (closestButton.classList.contains("expand-button")) {
+				code.classList.toggle("expanded");
 			}
 		}
 
-		if (closestButton.classList.contains("expand-button")) {
-			code.classList.toggle("expanded");
+		// Inline code select unscuff logic
+		if (ev.target.matches(":not(pre) code")) {
+			const code = ev.target as HTMLElement;
+			const selection = window.getSelection();
+			if (
+				ev.detail !== 2 ||
+				!selection?.rangeCount ||
+				code.nextSibling === null ||
+				code.nextSibling.textContent === null ||
+				code.childNodes.length === 0 ||
+				Array.from(code.childNodes).some((v) => v.nodeName !== "#text")
+			)
+				return;
+
+			const range = selection.getRangeAt(0);
+
+			if (range.endOffset === 1 && code.nextSibling.textContent.startsWith(" ")) {
+				range.setEnd(code.firstChild!, (code.firstChild! as Text).length!);
+			}
 		}
 	};
 
@@ -830,17 +850,6 @@ function MessageContent(props: {
 
 	return (
 		<>
-			{/* gigahack */}
-			{/* TODO: move these somewhere higher in the DOM */}
-			<div class="_svg-FaSolidArrowUp" inert style={{display: "none"}}>
-				<FaSolidArrowUp />
-			</div>
-			<div class="_svg-FaSolidArrowDown" inert style={{display: "none"}}>
-				<FaSolidArrowDown />
-			</div>
-			<div class="_svg-FaSolidClipboard" inert style={{display: "none"}}>
-				<FaSolidClipboard />
-			</div>
 			<Show
 				when={props.isEditing}
 				children={
@@ -860,26 +869,34 @@ function MessageContent(props: {
 							</div>
 						}
 					>
-						<div
-							ref={messageRef!}
-							classList={messageContentClassList()}
-							innerHTML={compiledMarkdown()}
-							data-relevant={isRelevantToUser() ? "yes" : "no"}
-							// This prevents jank when scrolling after last message streaming finishes
-							style={{
-								"content-visibility": props.isImmediatelyRelevant ? "visible" : undefined,
-								...(props.draggingDragbar ? styleOnWidgetResize() : {}),
-							}}
-							// TODO: skip this if content-visibility optimisation is disabled
-							// @ts-expect-error // too lazy to declare this event
-							on:contentvisibilityautostatechange={(ev: ContentVisibilityAutoStateChangeEvent) => {
-								// console.log("contentvisibilityautostatechange", [props.text.slice(0, 20)]);
-								if (!ev.skipped) {
-									setIsRelevantToUser(true);
-								}
-							}}
-							on:click={handleOnClickDirect}
-						/>
+						<Show when={props.role !== "tool"}>
+							<div
+								ref={messageRef!}
+								classList={messageContentClassList()}
+								// innerHTML={compiledMarkdown()}
+								data-relevant={isRelevantToUser() ? "yes" : "no"}
+								// This prevents jank when scrolling after last message streaming finishes
+								style={{
+									"content-visibility": props.isImmediatelyRelevant ? "visible" : undefined,
+									...(props.draggingDragbar ? styleOnWidgetResize() : {}),
+								}}
+								// TODO: skip this if content-visibility optimisation is disabled
+								// @ts-expect-error // too lazy to declare this event
+								on:contentvisibilityautostatechange={(ev: ContentVisibilityAutoStateChangeEvent) => {
+									// console.log("contentvisibilityautostatechange", [props.text.slice(0, 20)]);
+									if (!ev.skipped) {
+										setIsRelevantToUser(true);
+									}
+								}}
+								on:click={handleOnClickDirect}
+							/>
+						</Show>
+						<Show when={props.role === "tool"}>
+							<details>
+								<summary>Tool called</summary>
+								<div ref={messageRef!}>{props.text}</div>
+							</details>
+						</Show>
 					</ErrorBoundary>
 				}
 			/>
@@ -922,6 +939,7 @@ export function PlaceholderMessage(props: {role: "user" | "assistant"; lines: nu
 				isFirstAssistantMessage={false}
 			/>
 			<MessageContent
+				role={props.role}
 				onEditInput={noOp}
 				onEditKeyDown={noOp}
 				chatRef={null as any}
@@ -1083,11 +1101,9 @@ async function importHljs() {
 
 	// Register very likely languages immediately
 	if (hljs.listLanguages().length === 0) {
-		hljs.registerLanguage("python", python);
-		hljs.registerLanguage("javascript", javascript);
-		hljs.registerLanguage("typescript", typescript);
+		utils.registerHljsLanguages(); // not awaiting
+		await utils.registerCommonHljsLanguages();
 	}
-	utils.registerHljsLanguages(); // not awaiting
 	hljs.configure({ignoreUnescapedHTML: true});
 
 	return hljs;

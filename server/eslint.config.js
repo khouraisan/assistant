@@ -16,6 +16,7 @@ export default [
 			"@typescript-eslint/no-unnecessary-condition": "error",
 			"@typescript-eslint/no-explicit-any": "off",
 			"no-constant-condition": "warn",
+			"@typescript-eslint/ban-ts-comment": "off",
 		},
 		languageOptions: {
 			parserOptions: {

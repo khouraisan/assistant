@@ -1,13 +1,16 @@
+import {SearchTool} from "../tool/search";
+import type {Tool} from "../tool/tool";
 import {intoSSEConsumer, type LLMProvider} from "./provider";
 
 export type OpenRouterConfig = {
 	model: string;
 	temperature?: number;
 	top_p?: number;
-	max_tokens?: number;
+	max_tokens: number;
 	stop?: string | string[];
 	messages: OpenRouterMessage[];
 	include_reasoning?: boolean;
+	tools?: Record<string, unknown>[];
 	provider?: {
 		allow_fallbacks?: boolean | null;
 		require_parameters?: boolean | null;
@@ -40,10 +43,10 @@ const openRouterHeaders = {
 	"HTTP-Referer": "https://assistant.vercel.app/",
 };
 
-export function OpenRouterProvider(): LLMProvider {
+export function OpenRouterProvider(options: {tools: Tool[]}): LLMProvider {
 	return {
 		async streamResponse(chat, abort) {
-			const httpResponse = await callOpenRouter(await chat.toOpenRouterConfig(), abort);
+			const httpResponse = await callOpenRouter(await chat.toOpenRouterConfig(options), abort);
 			return {
 				status: httpResponse.status,
 				stream: intoSSEConsumer(httpResponse),
@@ -55,14 +58,14 @@ export function OpenRouterProvider(): LLMProvider {
 export async function callOpenRouter(config: OpenRouterConfig, abort: AbortController): Promise<Response> {
 	config = applyCaching(config);
 
-	console.log(config.messages);
+	console.dir(config.messages, {depth: null});
 
 	Bun.write("./latest-request.json", JSON.stringify(config, null, 4));
 
 	const response = fetch("https://openrouter.ai/api/v1/chat/completions", {
 		method: "POST",
 		headers: openRouterHeaders,
-		body: JSON.stringify({...config, max_tokens: 4096, stream: true} satisfies OpenRouterConfig & {stream: true}),
+		body: JSON.stringify({...config, stream: true} satisfies OpenRouterConfig & {stream: true}),
 		signal: abort.signal,
 	});
 

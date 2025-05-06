@@ -34,7 +34,16 @@ export type Message = {
 	id: string;
 	text: string;
 	date: Date;
-} & ({role: "user"; model?: never; attachments: Array<string>} | {role: "assistant"; model: string; attachments?: never});
+} & (
+	| {role: "user"; model?: never; attachments: Array<string>}
+	| {role: "assistant"; model: string; attachments?: never}
+	// TODO: populate properties
+	| {
+			role: "tool";
+			attachments?: never;
+			model?: never;
+	  }
+);
 
 export type TavernCharacter = {
 	id: string;
@@ -308,7 +317,9 @@ export type ChatSettings = {
 	temperature: number;
 	topP: number;
 	systemPrompt: string;
+	maxTokens: number;
 	color: "none" | "red" | "green" | "yellow" | "blue" | "orange" | "purple";
+	searchTool: boolean;
 } & ChatSettingsProvider;
 
 export type ChatSettingsProvider = {
@@ -356,8 +367,10 @@ export function defaultSettings(): ChatSettings {
 		model: "anthropic/claude-3.5-sonnet",
 		temperature: 1,
 		topP: 1,
+		maxTokens: 4096,
 		systemPrompt: "",
 		color: "none",
+		searchTool: false,
 	};
 }
 

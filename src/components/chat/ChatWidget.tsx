@@ -1,7 +1,7 @@
 /* @refresh reload */
 
 // #region imports
-
+import focksGif from "../../assets/focks.gif";
 import {
 	createComputed,
 	createEffect,
@@ -55,7 +55,7 @@ import {createStore} from "solid-js/store";
 import {trackStore} from "@solid-primitives/deep";
 import {getUpdatedProperties, isEmptyObject} from "../../util.ts";
 import {AiOutlineRobot} from "solid-icons/ai";
-import {useChat} from "../hooks/useChat.ts";
+import {Attachment, useChat} from "../hooks/useChat.ts";
 import * as server from "../../server.ts";
 import {useWidgetContext} from "../Widget.tsx";
 import {ChatPromptSettings} from "./ChatPromptSettings.tsx";
@@ -110,16 +110,17 @@ export default function ChatWidget() {
 		},
 	});
 
-	{
-		let computed = false;
-		createComputed(() => {
-			if (computed) return;
-			if (chats().length > 0) {
-				onSelectChat(chats()[0].id);
-				computed = true;
-			}
-		});
-	}
+	// // Select the last chat on first load
+	// {
+	// 	let computed = false;
+	// 	createComputed(() => {
+	// 		if (computed) return;
+	// 		if (chats().length > 0) {
+	// 			onSelectChat(chats()[0].id);
+	// 			computed = true;
+	// 		}
+	// 	});
+	// }
 
 	const onSelectChat = (id: server.ChatId) => {
 		selectChat(id);
@@ -168,6 +169,7 @@ export default function ChatWidget() {
 		scrollMessagesToBottom();
 	};
 
+	// TODO: this is broken. with really long messages at least
 	const findObscuredMessage = async (options: {
 		direction: "first" | "last";
 		rootMargin: string;
@@ -210,14 +212,14 @@ export default function ChatWidget() {
 		});
 	};
 
-	const findFirstObscured = () =>
+	const findFirstObscured = async () =>
 		findObscuredMessage({
 			direction: "first",
 			rootMargin: "16px 0px 0px 0px",
 			isObscured: (rect, root) => rect.bottom !== root.bottom,
 		});
 
-	const findLastObscured = () =>
+	const findLastObscured = async () =>
 		findObscuredMessage({
 			direction: "last",
 			rootMargin: "0px 0px 16px 0px",
@@ -237,14 +239,14 @@ export default function ChatWidget() {
 		// Instantly scroll to the element - 8 pixels and then slide the rest in slowly
 		// Looks less disorienting that way imo
 		{
-			el.scrollIntoView({
-				// TODO: "start" would be ideal but there's an edge case with messages larger than
-				// the viewport that break scrolling down.
-				block: snap,
-				behavior: "instant",
-			});
+			// el.scrollIntoView({
+			// 	// TODO: "start" would be ideal but there's an edge case with messages larger than
+			// 	// the viewport that break scrolling down.
+			// 	block: snap,
+			// 	behavior: "instant",
+			// });
 
-			messagesRef!.scrollTo({top: messagesRef!.scrollTop + (snap === "start" ? 8 : -8), behavior: "instant"});
+			// messagesRef!.scrollTo({top: messagesRef!.scrollTop + (snap === "start" ? 8 : -8), behavior: "instant"});
 
 			el.scrollIntoView({
 				block: snap,
@@ -266,7 +268,20 @@ export default function ChatWidget() {
 					refreshing: messages.loading && messages() !== undefined,
 				}}
 			>
-				<Show when={chatId() !== null}>
+				<Show
+					when={chatId() !== null}
+					fallback={
+						<GreetingScreen
+							handleAddChat={handleAddChat}
+							onSendClick={onSendClick}
+							input={input()}
+							setInput={setInput}
+							attachments={attachments()}
+							setAttachments={setAttachments}
+							isConnected={isConnected}
+						/>
+					}
+				>
 					<Messages
 						ref={messagesRef!}
 						messages={messages() ?? null}
@@ -344,8 +359,6 @@ function ChatQuickActions(props: {
 				<button
 					title="Scroll to top (double click to scroll instantly)"
 					disabled={props.chatId === null || !props.isMessagesOverlow}
-					// onDblClick={() => props.onTop(true)}
-					// onClick={() => props.onTop(false)}
 					onClick={() => props.onTop(false)}
 				>
 					<FaSolidAngleUp size={"1rem"} />
@@ -353,8 +366,6 @@ function ChatQuickActions(props: {
 				<button
 					title="Scroll to bottom (double click to scroll instantly)"
 					disabled={props.chatId === null || !props.isMessagesOverlow}
-					// onDblClick={() => props.onBottom(true)}
-					// onClick={() => props.onBottom(false)}
 					onClick={() => props.onBottom(false)}
 				>
 					<FaSolidAngleDown size={"1rem"} />
@@ -544,6 +555,20 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 					isLoaded={settingsLoaded()}
 					onSelect={(v) => setSettings("model", v.id)}
 				/>
+				<input
+					type="text"
+					placeholder="Max tokens"
+					value={settings.maxTokens}
+					onInput={(ev) => {
+						const value = parseInt(ev.currentTarget.value, 10);
+
+						ev.currentTarget.value = ev.currentTarget.value.replace(/[^0-9]/g, "");
+
+						if (!isNaN(value)) {
+							setSettings("maxTokens", value);
+						}
+					}}
+				/>
 				<Slider
 					disabled={!settingsLoaded()}
 					hideNumbers={!settingsLoaded()}
@@ -580,6 +605,14 @@ function ChatSettings(props: {chatId: server.ChatId; refetchChatHead: () => void
 			<section>
 				<h1>Extra</h1>
 				<ColorSelect value={settings.color} onSelect={(v) => setSettings("color", v)} />
+				<label>
+					<input
+						type="checkbox"
+						checked={settings.searchTool}
+						onChange={(ev) => setSettings("searchTool", ev.currentTarget.checked)}
+					/>
+					<span>Enable search</span>
+				</label>
 			</section>
 		</div>
 	);
@@ -651,4 +684,49 @@ function OpenRouterModelSelect(props: {
 
 function ChatInfo() {
 	return <div class="chat-info"></div>;
+}
+
+function GreetingScreen(props: {
+	handleAddChat: () => Promise<void>;
+	onSendClick: () => void;
+	input: string;
+	setInput: (value: string) => void;
+	attachments: Attachment[];
+	setAttachments: (value: Attachment[]) => void;
+	isConnected: () => boolean;
+}) {
+	const [creatingChat, setCreatingChat] = createSignal(false);
+
+	const handleSend = async () => {
+		// Add new chat and send
+		const promise = props.handleAddChat();
+		setCreatingChat(true);
+		await promise;
+
+		props.onSendClick();
+	};
+
+	return (
+		<>
+			<div class="chat-greeting-screen">
+				<div>
+					<h1>Hello!</h1>
+					<p>Type your message in the input box below and hit enter or click the send button.</p>
+					<img src={focksGif} />
+					<Show when={creatingChat()}>
+						<p>Please wait...</p>
+					</Show>
+				</div>
+			</div>
+			<Input
+				value={props.input}
+				setValue={(v) => props.setInput(v)}
+				attachments={props.attachments}
+				setAttachments={(v) => props.setAttachments(v)}
+				onSend={handleSend}
+				isGenerating={false} // We don't need this in the greeting screen
+				disabled={!props.isConnected()}
+			/>
+		</>
+	);
 }

@@ -128,7 +128,6 @@ export function deepEquals(a: unknown, b: unknown): boolean {
 
 export async function registerHljsLanguages() {
 	const hljs = (await import("highlight.js/lib/core")).default;
-	if (hljs.listLanguages().length > 0) return; // already registered
 
 	hljs.registerLanguage("1c", (await import("highlight.js/lib/languages/1c")).default);
 	hljs.registerLanguage("abnf", (await import("highlight.js/lib/languages/abnf")).default);
@@ -322,4 +321,26 @@ export async function registerHljsLanguages() {
 	hljs.registerLanguage("xl", (await import("highlight.js/lib/languages/xl")).default);
 	hljs.registerLanguage("xquery", (await import("highlight.js/lib/languages/xquery")).default);
 	hljs.registerLanguage("zephir", (await import("highlight.js/lib/languages/zephir")).default);
+}
+
+export async function registerCommonHljsLanguages() {
+	const hljs = (await import("highlight.js/lib/core")).default;
+
+	hljs.registerLanguage("javascript", (await import("highlight.js/lib/languages/javascript")).default);
+	hljs.registerLanguage("python", (await import("highlight.js/lib/languages/python")).default);
+	hljs.registerLanguage("typescript", (await import("highlight.js/lib/languages/typescript")).default);
+	hljs.registerLanguage("markdown", (await import("highlight.js/lib/languages/markdown")).default);
+	hljs.registerLanguage("json", (await import("highlight.js/lib/languages/json")).default);
+	hljs.registerLanguage("css", (await import("highlight.js/lib/languages/css")).default);
+	hljs.registerLanguage("html", (await import("highlight.js/lib/languages/xml")).default);
+	hljs.registerLanguage("xml", (await import("highlight.js/lib/languages/xml")).default);
+}
+
+export function suffixDiff(old: string, nu: string) {
+	const minLength = old.length;
+	let i = 0;
+	while (i < minLength && old[i] === nu[i]) {
+		i++;
+	}
+	return nu.slice(i);
 }

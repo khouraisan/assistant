@@ -27,6 +27,7 @@ export function compileMarkdown(text: string) {
 	parsed = parsed.replaceAll(open, "<q>");
 	parsed = parsed.replaceAll(close, "</q>");
 	// console.log("input", withQuotes, "parsed", JSON.parse(JSON.stringify(parsed)));
+
 	return parsed;
 }
 

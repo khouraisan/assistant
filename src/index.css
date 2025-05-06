@@ -95,7 +95,9 @@ body,
 	--textarea-padding: 0.5rem;
 }
 
-input,
+input[type="text"],
+input[type="number"],
+input[type="range"],
 textarea {
 	background-color: var(--bg-primary);
 	color: var(--text-primary);
@@ -190,4 +192,29 @@ h6 {
 		Atkinson Hyperlegible,
 		system-ui,
 		sans-serif;
+}
+
+input[type="checkbox"] {
+	appearance: none;
+	width: 2rem;
+	height: 2rem;
+	border-radius: var(--border-radius);
+	background-color: var(--bg-primary-dark);
+	border: 1px solid var(--bg-primary-light);
+	cursor: pointer;
+	vertical-align: text-bottom;
+
+	display: inline-flex;
+	justify-content: center;
+	align-items: center;
+
+	&:checked::after {
+		content: "✔";
+		color: inherit;
+		font-size: 1.33rem;
+	}
+}
+
+label:has(input[type="checkbox"]) > input[type="checkbox"] {
+	margin-right: var(--gap);
 }

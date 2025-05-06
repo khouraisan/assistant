@@ -502,6 +502,7 @@ function OpenRouterModelSelect(props: {value: server.OpenRouterModelId; onSelect
 	return (
 		<Select
 			// this seems to be working. yeah.
+			// TODO: trim the search resulys like st does
 			{...createOptions(models() ?? [], {
 				extractText: (v: server.OpenRouterModel) => v.name,
 				format: (v: server.OpenRouterModel) => v.name,

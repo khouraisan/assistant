@@ -12,7 +12,14 @@ export type ErrorChunk = {
 	content: Record<string, unknown>;
 };
 
-export type ChunkEvent = MessageChunk | ErrorChunk;
+export type ToolChunk = {
+	type: "tool";
+	id: string;
+	index: number;
+	content: string;
+};
+
+export type ChunkEvent = MessageChunk | ErrorChunk | ToolChunk;
 
 export type ProviderResponse = {
 	status: number;
@@ -60,11 +67,16 @@ export async function* intoSSEConsumer(response: Response): AsyncIterable<ChunkE
 		yield {type: "error", content: error} as const;
 	}
 
-	let events: eventsource.EventSourceMessage[] = [];
+	// index -> tool call id
+	const toolsUsed: Array<string> = [];
+
+	const events: eventsource.EventSourceMessage[] = [];
 	const parser = eventsource.createParser({onEvent: (x) => events.push(x)});
 	const dec = new TextDecoder();
+
 	for await (const chunk of response.body! as any as ReadableStream<Uint8Array>) {
 		parser.feed(dec.decode(chunk));
+		
 		for (const e of events) {
 			// some models sometimes send this instead of a proper object.
 			if (e.data === "[DONE]") {
@@ -80,14 +92,37 @@ export async function* intoSSEConsumer(response: Response): AsyncIterable<ChunkE
 				return;
 			}
 			const choice = event.choices[0];
-			const message = {type: "message", content: choice.delta.content as string} as const;
+
+			const content = choice.delta.content as string | null;
+			const message = {type: "message", content} as const;
+
 			if (choice.finish_reason !== null) {
-				yield message;
+				if (message.content) {
+					yield message as {type: "message"; content: string};
+				}
 				return;
 			} else {
-				yield message;
+				if (message.content) {
+					yield message as {type: "message"; content: string};
+				}
+
+				if ("tool_calls" in choice.delta) {
+					for (const call of choice.delta.tool_calls) {
+						if (call.type !== "function") {
+							throw new Error("Unknown tool call type: " + call.type);
+						}
+
+						if (call.id) {
+							toolsUsed[call.index] = call.id;
+						}
+						const id = toolsUsed[call.index];
+
+						yield {type: "tool", id, index: call.index, content: call.function.arguments} as const;
+					}
+				}
 			}
 		}
-		events = [];
+
+		events.length = 0;
 	}
 }

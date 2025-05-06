@@ -91,7 +91,7 @@
 	text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.solid-select-container .solid-select-input {
+.solid-select-container .solid-select-input[type="text"] {
 	background-color: transparent;
 	border-width: 0px;
 	flex: 1 1 0%;
@@ -106,7 +106,7 @@
 	/* z-index: 1; */
 }
 
-.solid-select-control .solid-select-input:read-only {
+.solid-select-control .solid-select-input[type="text"]:read-only {
 	cursor: default !important;
 	background: transparent;
 }
