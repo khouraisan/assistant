@@ -21,7 +21,7 @@ RUN bun run build
 FROM oven/bun:1.1.25-alpine
 WORKDIR /app/server
 
-COPY server/package.json server/bun.lockb .
+COPY server/package.json server/bun.lock .
 RUN bun i
 
 COPY server .
