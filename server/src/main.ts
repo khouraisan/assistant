@@ -650,6 +650,7 @@ app.get("/chats/:chatId", validateChatId, async (req, res) => {
 
 		if (full === "false") {
 			res.json(chat.head());
+			return;
 		}
 
 		res.json(chat);
@@ -1114,6 +1115,7 @@ app.get("/characters/:id", validateCharacterId, async (req, res) => {
 
 		if (full === "false") {
 			res.json(character.head());
+			return;
 		}
 
 		res.json(character);
@@ -1336,6 +1338,7 @@ app.get("/openroutermodels", async (req, res) => {
 					({
 						id: v.id,
 						name: v.name,
+
 						pricing: {
 							prompt: v.pricing.prompt,
 							completion: v.pricing.completion,

@@ -1,4 +1,4 @@
-FROM oven/bun:1.2.5-alpine AS builder
+FROM oven/bun:1.1.25-alpine AS builder
 WORKDIR /app
 RUN mkdir -p deps/solid-select
 
@@ -18,7 +18,7 @@ RUN bun i
 COPY . .
 RUN bun run build
 
-FROM oven/bun:1.2.5-alpine
+FROM oven/bun:1.1.25-alpine
 WORKDIR /app/server
 
 COPY server/package.json server/bun.lock .

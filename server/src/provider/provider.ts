@@ -76,7 +76,7 @@ export async function* intoSSEConsumer(response: Response): AsyncIterable<ChunkE
 
 	for await (const chunk of response.body! as any as ReadableStream<Uint8Array>) {
 		parser.feed(dec.decode(chunk));
-		
+
 		for (const e of events) {
 			// some models sometimes send this instead of a proper object.
 			if (e.data === "[DONE]") {

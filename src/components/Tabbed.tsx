@@ -34,9 +34,7 @@ export function Tabbed<T extends string>(props: {
 				</For>
 				<For each={props.extraButtons}>
 					{([button, onClick], i) => (
-						<li class="extra" classList={{
-							"first-extra": i() === 0,
-						}}>
+						<li class="extra" classList={{"first-extra": i() === 0}}>
 							<button onClick={() => onClick({setTab: handleSetTab})}>{button}</button>
 						</li>
 					)}

@@ -19,7 +19,7 @@ import {FiMaximize2, FiMinimize2} from "solid-icons/fi";
 import Button from "./Button";
 import {BsThreeDotsVertical} from "solid-icons/bs";
 import {getCaretOffset, isSelectingSelf} from "../util";
-import { SsWidget } from "./ss/SsWidget";
+import {SsWidget} from "./ss/SsWidget";
 
 export type WidgetProps = {
 	isLastWidget: boolean;

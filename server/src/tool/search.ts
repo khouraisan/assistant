@@ -217,8 +217,8 @@ async function callLLM(messages: any[]) {
 			tools,
 			messages,
 			provider: {
-				order: ["Google"]
-			}
+				order: ["Google"],
+			},
 		}),
 	});
 
