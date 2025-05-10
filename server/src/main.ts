@@ -1338,7 +1338,6 @@ app.get("/openroutermodels", async (req, res) => {
 					({
 						id: v.id,
 						name: v.name,
-
 						pricing: {
 							prompt: v.pricing.prompt,
 							completion: v.pricing.completion,

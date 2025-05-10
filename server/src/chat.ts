@@ -1,6 +1,6 @@
 import {Message, type MessageId} from "./message";
 import * as openrouter from "./provider/openrouter";
-import * as macros from "./macros";
+import * as macros from "./macro/macro";
 import {asDataUrl} from "./image";
 import {getImage} from "./main";
 import type {Tool} from "./tool/tool";
@@ -213,7 +213,6 @@ export class Chat {
 							(v) =>
 								({
 									type: "image_url",
-
 									image_url: {
 										url: v,
 									},
