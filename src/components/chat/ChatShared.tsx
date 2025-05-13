@@ -249,7 +249,7 @@ export function Input(props: {
 
 	const handleOnClick = () => {
 		props.onSend();
-		// If we have virtual keyboard, blur the textarea (the send button in reality probably)
+		// If we have a virtual keyboard, blur the textarea (the send button in reality probably)
 		// when clicking send to clear :focus-within from .supports-keyboard-inset .chat-input-wrapper:focus-within
 		// and bring the input to its correct position
 		if ("virtualKeyboard" in window.navigator) {
@@ -257,7 +257,21 @@ export function Input(props: {
 		}
 	};
 
+	const [virtualKeyboardY, setVirtualKeyboardY] = createSignal(null);
 	const [shouldRaise, setShouldRaise] = createSignal(false);
+
+	if ("virtualKeyboard" in window.navigator) {
+		const listener = (ev: any) => {
+			setVirtualKeyboardY(ev.target.boundingRect.y);
+		};
+
+		const nav = window.navigator.virtualKeyboard as any;
+		nav.addEventListener("geometrychange", listener);
+		// It's fine to call a hook here
+		onCleanup(() => {
+			nav.removeEventListener("geometrychange", listener);
+		});
+	}
 
 	const setOverlayContent = (v: boolean) => {
 		// Input moves up and down with keyboard like in chatgpt.com
@@ -338,6 +352,7 @@ export function Input(props: {
 			class="chat-input-wrapper"
 			classList={{
 				raise: shouldRaise(),
+				"at-zero": virtualKeyboardY() === 0 || virtualKeyboardY() === null,
 			}}
 		>
 			<AttachmentList attachments={props.attachments} onDelete={handleAttachmentDelete} />
@@ -774,14 +789,7 @@ function MessageContent(props: {
 		// FIXME: This causes a flicker where the code goes highlighted -> unhighlighted -> highlighted.
 		setTimeout(() => {
 			for (const block of messageRef!.querySelectorAll("pre > code") as NodeListOf<HTMLElement>) {
-				if (!block.parentElement!.querySelector(".code-header")) {
-					const lang =
-						block.className
-							.split(" ")
-							.find((v) => v.startsWith("language-"))
-							?.slice(9) ?? "text";
-					// addCodeBlockHeader(block, lang);
-				}
+				// addCodeBlockHeader(block, lang);
 
 				if (block.dataset.highlighted === "yes") continue;
 				if (block.innerText.length > 10000) {
@@ -789,7 +797,18 @@ function MessageContent(props: {
 					continue;
 				}
 
-				setTimeout(async () => (await importHljs()).highlightElement(block as HTMLElement), 0);
+				setTimeout(async () => {
+					(await importHljs()).highlightElement(block as HTMLElement);
+
+					const h5 = block.parentElement!.querySelector(".code-header > h5");
+					const lang = block.className
+						.split(" ")
+						.find((v) => v.startsWith("language-"))
+						?.slice(9) as string | null;
+					if (h5 && lang) {
+						h5.textContent = lang;
+					}
+				}, 0);
 			}
 		}, 0);
 	});

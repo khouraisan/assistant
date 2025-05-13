@@ -205,16 +205,17 @@ const wss = new WebSocketServer({
 app.use(express.json());
 app.use(cors());
 app.use(compression());
-app.use((req, _, next) => {
-	console.log(`[${req.method} ${req.originalUrl}]:`, JSON.stringify(req.body));
-	next();
-});
 
 app.use(express.static("public"));
 if (Bun.argv.includes("--expose-dist")) {
 	console.warn("--expose-dist=true");
 	app.use(express.static("../dist"));
 }
+
+app.use((req, _, next) => {
+	console.log(`[${req.method} ${req.originalUrl}]:`, JSON.stringify(req.body));
+	next();
+});
 
 // disable caching for REST. comes after express.static
 app.use((_, res, next) => {

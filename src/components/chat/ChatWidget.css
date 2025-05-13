@@ -83,7 +83,7 @@
 	min-height: var(--input-wrapper-min-height);
 }
 
-.supports-keyboard-inset .chat-input-wrapper.raise {
+.supports-keyboard-inset .chat-input-wrapper.raise:not(.at-zero) {
 	transform: translateY(calc(var(--input-wrapper-min-height) - env(keyboard-inset-bottom)));
 	max-height: env(keyboard-inset-height);
 	margin-top: calc(-1 * var(--input-wrapper-min-height));

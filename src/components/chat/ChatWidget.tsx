@@ -110,27 +110,29 @@ export default function ChatWidget() {
 		},
 	});
 
-	// // Select the last chat on first load
-	// {
-	// 	let computed = false;
-	// 	createComputed(() => {
-	// 		if (computed) return;
-	// 		if (chats().length > 0) {
-	// 			onSelectChat(chats()[0].id);
-	// 			computed = true;
-	// 		}
-	// 	});
-	// }
-
 	const onSelectChat = (id: server.ChatId) => {
 		selectChat(id);
 		widgetCtx.setTitle(chats().find((v) => v.id === id)!.name);
+	};
+
+	const awaitMessagesLoad = async (resolveAfter: number) => {
+		let t1 = performance.now();
+		await new Promise((resolve) => {
+			const fn = () => {
+				if (!messages.loading || performance.now() - t1 > resolveAfter) {
+					resolve(true);
+				}
+			};
+			fn();
+			setTimeout(fn, 50);
+		});
 	};
 
 	const handleAddChat = async () => {
 		const newId = await onAddChat();
 		if (newId !== null) {
 			onSelectChat(newId);
+			await awaitMessagesLoad(2000);
 		}
 	};
 
